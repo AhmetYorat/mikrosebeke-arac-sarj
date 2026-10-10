@@ -17,8 +17,8 @@ Kapsam kararı: [docs/kapsam.md](docs/kapsam.md) · Çalışma düzeni ve Git ku
 Python 3.10 veya üstü gerekir (3.12 ile denendi).
 
 ```bash
-git clone <repo-url>
-cd <repo-klasoru>
+git clone https://github.com/AhmetYorat/mikrosebeke-arac-sarj.git
+cd mikrosebeke-arac-sarj
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
