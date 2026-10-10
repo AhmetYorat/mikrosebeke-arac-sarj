@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.DS_Store
+.streamlit/secrets.toml
+
+# Büyük/ham veri repoya girmez; nasıl indirileceği data/README.md'de yazar.
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+
+# MATLAB/Simulink geçici dosyaları
+slprj/
+*.slxc
+*.asv
+

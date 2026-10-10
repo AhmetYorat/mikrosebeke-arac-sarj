@@ -1,0 +1,53 @@
+# Varsayılan senaryo ayarları.
+# TASLAK: buradaki sayılar başlangıç değeridir. Boyutlandırma EM-1'de,
+# istasyon/araç parametreleri YM-2'de; Hafta 2 parametre tablosuyla kesinleşir.
+# Birimler: güç kW, enerji kWh, saat ondalık (18.5 = 18:30), SOC 0-1 arası.
+
+simulation:
+  step_minutes: 15        # zaman adımı
+  horizon_hours: 24       # temsili gün (yıllık simülasyon kararı açık)
+
+site:
+  name: null              # PVGIS için konum henüz seçilmedi (YM-1)
+  latitude: null
+  longitude: null
+
+station:
+  type: site_otoparki     # site_otoparki | avm | otoyol
+  power_limit_kw: 150     # bağlantı/trafo kaynaklı istasyon limiti; EMS bunu aşmamalı
+  chargers:
+    - {kind: AC, count: 8, power_kw: 22}
+    - {kind: DC, count: 2, power_kw: 50}   # site otoparkında DC gerekli mi? bkz. docs/kapsam.md
+
+vehicles:
+  count: 20
+  battery_kwh: 60
+  # Site otoparkı: akşam eve dönüş, sabah işe çıkış. Araçlar gece boyu bağlı.
+  arrival_hour:   {mean: 18.5, std: 1.5}
+  departure_hour: {mean: 7.5,  std: 1.0}
+  arrival_soc:    {min: 0.2, max: 0.6}
+  target_soc: 0.8
+
+pv:
+  installed_kw: 100
+
+bess:
+  capacity_kwh: 200
+  power_kw: 100
+  efficiency: 0.95
+  soc_min: 0.1
+  soc_max: 0.9
+  soc_initial: 0.5
+
+grid:
+  transformer_kva: 400
+  voltage_min_pu: 0.95    # KPI: gerilim bunun altına düşüyor mu?
+  voltage_max_pu: 1.05
+  max_loading_percent: 100
+
+tariff:
+  # Üç zamanlı tarife dilimleri. Fiyatlar YM-1 tarafından EPDK verisinden girilecek.
+  periods:
+    - {name: gunduz, start: 6,  end: 17, price_tl_per_kwh: null}
+    - {name: puant,  start: 17, end: 22, price_tl_per_kwh: null}
+    - {name: gece,   start: 22, end: 6,  price_tl_per_kwh: null}

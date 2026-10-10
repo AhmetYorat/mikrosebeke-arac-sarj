@@ -1,0 +1,11 @@
+numpy
+pandas>=2.1
+pyyaml
+pandapower>=2.14
+pulp
+streamlit>=1.36
+plotly
+pytest
+
+# Projenin kendi paketi (src/microgrid). Böylece her yerden `import microgrid` çalışır.
+-e .
