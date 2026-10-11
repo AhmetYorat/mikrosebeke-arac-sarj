@@ -5,6 +5,7 @@ pandapower>=2.14
 pulp
 streamlit>=1.36
 plotly
+matplotlib
 pytest
 
 # Projenin kendi paketi (src/microgrid). Böylece her yerden `import microgrid` çalışır.

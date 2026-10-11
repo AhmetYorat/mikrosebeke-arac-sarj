@@ -15,3 +15,6 @@ slprj/
 *.slxc
 *.asv
 
+
+# Gizli anahtarlar (ör. ACN_API_TOKEN)
+.env

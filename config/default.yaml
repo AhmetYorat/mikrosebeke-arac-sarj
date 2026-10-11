@@ -8,9 +8,9 @@ simulation:
   horizon_hours: 24       # temsili gün (yıllık simülasyon kararı açık)
 
 site:
-  name: null              # PVGIS için konum henüz seçilmedi (YM-1)
-  latitude: null
-  longitude: null
+  name: Bandirma          # PVGIS konumu (YM-1)
+  latitude: 40.352
+  longitude: 27.977
 
 station:
   type: site_otoparki     # site_otoparki | avm | otoyol
@@ -30,6 +30,11 @@ vehicles:
 
 pv:
   installed_kw: 100
+  # PVGIS sorgu ayarları (YM-1). Veri 1 kWp için indirilir, installed_kw ile ölçeklenir.
+  pvgis_year: 2023        # PVGIS v5.3'te mevcut son yıl
+  tilt_deg: 30            # panel eğimi (Bandırma için optimuma yakın)
+  azimuth_deg: 0          # PVGIS: 0 = güney
+  loss_percent: 14        # kablo, inverter, kirlenme kayıpları (PVGIS varsayılanı)
 
 bess:
   capacity_kwh: 200
@@ -46,8 +51,9 @@ grid:
   max_loading_percent: 100
 
 tariff:
-  # Üç zamanlı tarife dilimleri. Fiyatlar YM-1 tarafından EPDK verisinden girilecek.
+  # EPDK üç zamanlı mesken tarifesi, 4 Nisan 2026 dönemi, vergiler hariç (YM-1).
+  # Kaynak ve doğrulama durumu: docs/veri-kaynaklari.md
   periods:
-    - {name: gunduz, start: 6,  end: 17, price_tl_per_kwh: null}
-    - {name: puant,  start: 17, end: 22, price_tl_per_kwh: null}
-    - {name: gece,   start: 22, end: 6,  price_tl_per_kwh: null}
+    - {name: gunduz, start: 6,  end: 17, price_tl_per_kwh: 4.38}
+    - {name: puant,  start: 17, end: 22, price_tl_per_kwh: 6.17}
+    - {name: gece,   start: 22, end: 6,  price_tl_per_kwh: 2.94}
