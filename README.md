@@ -48,6 +48,7 @@ streamlit run dashboard/app.py
 | `simulink/` | Simulink modeli ve CSV çıktıları | EM-1, EM-2 |
 | `data/` | Ham ve işlenmiş veri (repoya girmez) | YM-1 |
 | `docs/` | Kapsam, arayüz dokümanı, haftalık raporlar | Herkes |
+| `scripts/` | Rapor grafiklerini üreten tek seferlik scriptler | Herkes |
 | `tests/` | Birim testleri | Herkes |
 
 ## Ortak kurallar
