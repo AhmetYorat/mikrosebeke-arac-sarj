@@ -1,5 +1,5 @@
 numpy
-pandas>=2.1
+pandas>=2.2
 pyyaml
 pandapower>=2.14
 pulp
