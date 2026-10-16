@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YM-2 EV Şarj İstasyonu UML Sınıf Diyagramı</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      margin: 0;
+      padding: 30px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    h1 {
+      color: #0f172a;
+      margin-top: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      font-size: 14px;
+      background: #3b82f6;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    button {
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #0284c7;
+    }
+    .diagram-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 20px;
+      background: #ffffff;
+      overflow-x: auto;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      ⚡ EV Şarj İstasyonu UML Sınıf Diyagramı 
+      <span class="badge">YM-2 Hafta 2 Tasarımı</span>
+    </h1>
+    <p>Bu diyagram, <strong>ElectricVehicle</strong>, <strong>ChargingUnit</strong>, <strong>ChargingStation</strong> ve <strong>DemandModel</strong> sınıflarının nesne yönelimli mimarisini ve ilişkilerini gösterir.</p>
+    
+    <div class="controls">
+      <button onclick="downloadSVG()">SVG Olarak İndir (Vektörel)</button>
+    </div>
+
+    <div class="diagram-card" id="diagram-container">
+      <pre class="mermaid" id="mermaid-code">
+classDiagram
+    direction TB
+
+    class UnitStatus {
+        <<enumeration>>
+        AVAILABLE
+        OCCUPIED_CHARGING
+        OCCUPIED_IDLE
+        OCCUPIED_DISCHARGING
+    }
+
+    class ElectricVehicle {
+        +str vehicle_id
+        +str model_name
+        +float battery_capacity_kwh
+        +float initial_soc
+        +float current_soc
+        +float target_soc
+        +float arrival_time
+        +float departure_time
+        +float max_ac_power_kw
+        +float max_dc_power_kw
+        +bool v2g_capable
+        +bool is_connected
+        +str connected_unit_id
+        +energy_needed_kwh() float
+        +remaining_parking_duration_hours() float
+        +is_fully_charged() bool
+        +get_max_charging_power(unit_type, unit_max_kw) float
+        +charge(power_kw, dt_hours, efficiency) float
+        +discharge(power_kw, dt_hours, efficiency) float
+        +to_dict() dict
+    }
+
+    class ChargingUnit {
+        +str unit_id
+        +str unit_type
+        +float max_power_kw
+        +float min_power_kw
+        +float current_power_kw
+        +float total_energy_delivered_kwh
+        +UnitStatus status
+        +ElectricVehicle connected_vehicle
+        +is_occupied() bool
+        +connect_vehicle(vehicle) bool
+        +disconnect_vehicle() ElectricVehicle
+        +get_max_deliverable_power() float
+        +set_power(power_kw) float
+        +step(dt_hours) float
+        +to_dict() dict
+    }
+
+    class ChargingStation {
+        +str station_id
+        +str name
+        +float transformer_limit_kw
+        +dict units
+        +float total_energy_delivered_kwh
+        +int completed_sessions_count
+        +total_capacity_kw() float
+        +active_connected_vehicles_count() int
+        +get_unit(unit_id) ChargingUnit
+        +get_available_units(unit_type) list
+        +plug_in_vehicle(vehicle, preferred_type) str
+        +unplug_vehicle(unit_id) ElectricVehicle
+        +auto_handle_departures(current_time) list
+        +bagli_araclar(current_time) list
+        +apply_power_allocations(allocations) void
+        +get_total_power_kw() float
+        +is_transformer_overloaded() bool
+        +step(dt_hours, current_time) dict
+        +get_dashboard_state() dict
+    }
+
+    class DemandModel {
+        +int random_seed
+        +generate_fleet(total_vehicles) list
+        -_sample_spec() dict
+    }
+
+    ChargingStation "1" *-- "10" ChargingUnit : barındırır (has-a)
+    ChargingUnit "1" o-- "0..1" ElectricVehicle : şarj eder (uses)
+    ChargingUnit ..> UnitStatus : durum takibi
+    DemandModel ..> ElectricVehicle : üretir
+      </pre>
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+
+    function downloadSVG() {
+      const svg = document.querySelector("#diagram-container svg");
+      if (!svg) {
+        alert("Diyagram henüz yüklenmedi.");
+        return;
+      }
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = svgUrl;
+      downloadLink.download = "YM2_EV_Sinif_Diyagrami.svg";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+  </script>
+</body>
+</html>
