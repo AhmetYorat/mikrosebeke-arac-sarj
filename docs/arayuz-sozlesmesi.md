@@ -83,8 +83,26 @@ Döngüye tek bir tablo verir: indeks `time_index(cfg)`, sütunlar:
 | `base_load_kw` | kW | İstasyon dışı sabit yük (site binaları) |
 | `price_tl_per_kwh` | TL/kWh | O adımın tarife fiyatı |
 
-Beklenen fonksiyon: `build_inputs(cfg, index) -> DataFrame`. PVGIS saatlik olduğu için 15 dakikaya ara değerleme
-burada yapılır.
+Beklenen fonksiyon: `build_inputs(cfg, index) -> DataFrame`.
+
+**15 dakikaya çevirme veri katmanında yapılır** (YM-1 ile kararlaştırıldı). Döngü her zaman `step_minutes`
+çözünürlüğünde tablo bekler, saatlik veriyi kendisi çevirmez.
+
+- Güç (kW) bir **anlık değerdir**, enerji değildir: saatlik 40 kW, 15 dakikalık adımda da ~40 kW'tır.
+  4'e bölmek yanlış olur; 4'e bölünen şey enerjidir (kWh).
+- Ara değerleme doğrusal (`interpolate`) olsun; tekrar etmek (`ffill`) PV eğrisinde saat başı basamaklar yaratır.
+
+**YM-1'in kendi dosyaları** (`data/processed/`, Türkiye saati): `pv_kw_per_kwp` (kW/kWp), `residential_kw`,
+`commercial_kw`, `total_kw` (kW). Bu sütunlar veri katmanının içindedir; döngüye `build_inputs` şöyle çevirerek verir:
+
+| Döngüye giden | Hesap |
+| --- | --- |
+| `pv_kw` | `pv_kw_per_kwp × pv.installed_kw` |
+| `base_load_kw` | `total_kw` (hangi profillerin toplama gireceği açık soru 5) |
+| `price_tl_per_kwh` | config'teki tarife dilimleri |
+
+Neden döngü dosya sütunlarını doğrudan okumuyor: veri katmanı ileride yeni bir profil eklerse ya da sütun adını
+değiştirirse döngü, EMS ve dashboard etkilenmesin. Sınırda yalnızca üç sütun var; içerisi YM-1'in.
 
 ### YM-2: Şarj istasyonu (`ChargingStation`)
 
@@ -193,3 +211,5 @@ Python tarafında okuma: `from microgrid.simulink_io import load_simulink_csv`.
 3. **Simulink sütunları:** EM-2 modelde bu sinyalleri ölçebiliyor mu, eksik ya da fazla olan var mı? (EM-2)
 4. **Bara yerleşimi:** PV, BESS ve istasyon aynı barada mı, ayrı barada mı? Gerilim düşümü sonucunu doğrudan
    etkiler. (EM-1, EM-2)
+5. **Sabit yük:** Site otoparkı senaryosunda `base_load_kw` yalnızca konut yükü mü (`residential_kw`), yoksa
+   ticari yük de giriyor mu (`total_kw`)? Sitede dükkân yoksa konut yükü daha gerçekçi. (YM-1, EM-1)
