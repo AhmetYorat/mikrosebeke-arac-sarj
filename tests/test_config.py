@@ -12,3 +12,10 @@ def test_station_limit_below_installed_charger_power():
     cfg = load_config()
     installed = sum(c["count"] * c["power_kw"] for c in cfg["station"]["chargers"])
     assert cfg["station"]["power_limit_kw"] < installed
+
+
+def test_limits_are_nested():
+    # İstasyon sitenin içinde, site trafonun içinde (cos φ = 1 varsayımıyla kVA ≈ kW).
+    cfg = load_config()
+    station, site = cfg["station"]["power_limit_kw"], cfg["grid"]["site_import_limit_kw"]
+    assert station < site < cfg["grid"]["transformer_kva"]

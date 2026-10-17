@@ -6,15 +6,23 @@
 simulation:
   step_minutes: 15        # zaman adımı
   horizon_hours: 24       # temsili gün (yıllık simülasyon kararı açık)
+  # Temsili gün öğlen başlar, ertesi gün öğlen biter: site otoparkında araçlar akşam gelip
+  # sabah ayrıldığı için gece şarjının tamamı tek pencereye sığar. Tarih kararı açık (YM-1).
+  start: "2023-06-21 12:00"
+  timezone: Europe/Istanbul
 
 site:
   name: Bandirma          # PVGIS konumu (YM-1)
   latitude: 40.352
   longitude: 27.977
+  # Site büyüklüğü (EM-1). YM-1 yük profillerini bu yıllık enerjilere ölçekler.
+  apartments: 50
+  kwh_per_apartment_year: 2400       # daireler toplam 120 MWh/yıl
+  common_and_shops_kwh_year: 80000   # ortak alan + dükkânlar; araç şarjı hariç site toplamı 200 MWh/yıl
 
 station:
   type: site_otoparki     # site_otoparki | avm | otoyol
-  power_limit_kw: 150     # bağlantı/trafo kaynaklı istasyon limiti; EMS bunu aşmamalı
+  power_limit_kw: 150     # istasyonun çekebileceği en yüksek toplam güç (EM-1); EMS aşmamalı
   chargers:
     - {kind: AC, count: 8, power_kw: 22}
     - {kind: DC, count: 2, power_kw: 50}   # site otoparkında DC gerekli mi? bkz. docs/kapsam.md
@@ -45,7 +53,9 @@ bess:
   soc_initial: 0.5
 
 grid:
-  transformer_kva: 400
+  # Üç ayrı sınır (EM-1): istasyon 150 kW (station.power_limit_kw) ⊂ site 180 kW ⊂ trafo 400 kVA
+  transformer_kva: 400            # fiziksel trafo kapasitesi
+  site_import_limit_kw: 180       # tüm sitenin (daire + ortak alan + dükkân + istasyon) şebekeden çekebileceği en yüksek güç
   voltage_min_pu: 0.95    # KPI: gerilim bunun altına düşüyor mu?
   voltage_max_pu: 1.05
   max_loading_percent: 100
