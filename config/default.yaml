@@ -36,6 +36,17 @@ pv:
   azimuth_deg: 0          # PVGIS: 0 = güney
   loss_percent: 14        # kablo, inverter, kirlenme kayıpları (PVGIS varsayılanı)
 
+loads:
+  # Sabit yükler (site binaları), saatlik profil (YM-1). Şekil BDEW standart yük profillerinden
+  # (H0 konut, G0 ticari) gelir, büyüklük yıllık tüketimle ölçeklenir. Kaynak: docs/veri-kaynaklari.md
+  # TASLAK: daire sayısı ve tüketimler EM-1 boyutlandırmasıyla kesinleşecek.
+  year: 2023              # PVGIS yılıyla aynı tutulur ki haftanın günleri ve tatiller eşleşsin
+  residential:
+    households: 120       # site daire sayısı
+    kwh_per_household: 2400   # daire başına yıllık tüketim (varsayım, doğrulanacak)
+  commercial:
+    annual_kwh: 80000     # ortak alanlar (asansör, aydınlatma, hidrofor) + sitedeki küçük dükkânlar
+
 bess:
   capacity_kwh: 200
   power_kw: 100

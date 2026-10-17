@@ -1,16 +1,16 @@
-# Veri kaynakları (YM-1, Hafta 1)
+# Veri kaynakları (YM-1)
 
-Üç kaynağa erişim denendi. Her biri için nereden geldiği, formatı ve projede nasıl kullanılacağı aşağıda.
+Hafta 1'de üç kaynağa erişim denendi, Hafta 2'de PV verisi temizlendi ve sabit yük profilleri eklendi. Her biri için nereden geldiği, formatı ve projede nasıl kullanılacağı aşağıda.
 Verinin nasıl indirileceği: [data/README.md](../data/README.md).
 
 ## Özet
 
 | Veri | Kaynak | Erişim | Durum | Projede kullanan |
 | --- | --- | --- | --- | --- |
-| Güneş ışınımı / PV üretimi | PVGIS v5.3 (AB JRC) | Açık API, anahtar yok | Çalışıyor, Bandırma 2023 indirildi | YM-1 PV modeli → EMS, döngü |
+| Güneş ışınımı / PV üretimi | PVGIS v5.3 (AB JRC) | Açık API, anahtar yok | İndirildi ve temizlendi (Bandırma 2023) | YM-1 PV modeli → EMS, döngü |
 | EV şarj oturumları | Caltech ACN-Data | API, ücretsiz token | Kod hazır, token bekleniyor | YM-2 talep modeli |
 | Elektrik tarifesi | EPDK üç zamanlı tarife | Elle (EPDK tablosu) | Fiyatlar girildi, resmi tablodan doğrulanacak | YM-3 EMS, YM-1 KPI (maliyet) |
-| Sabit yük profilleri | Açık veri / sentetik | — | Hafta 2 | YM-1 yük modeli |
+| Sabit yük profilleri | BDEW H0/G0 (demandlib) + Türkiye tatilleri | Paket içinde, internet gerekmez | Hazır, konut + ticari saatlik | YM-1 yük modeli → EMS, pandapower |
 
 ## 1. PVGIS: güneş verisi
 
@@ -32,6 +32,19 @@ Verinin nasıl indirileceği: [data/README.md](../data/README.md).
     Bu kaymadan dolayı dosya 1 Ocak 03:00'te başlar, son 3 saat 2024'e taşar.
   - Saatlik çözünürlük. Config'deki 15 dk'lık adım için ara değerleme gerekecek (Hafta 3, PV modeli).
   - PVGIS v5.3'te kullanılabilen son yıl 2023.
+- **Temizleme (Hafta 2, `pvgis.clean`):** Ham tablo yerel saatte tam bir takvim yılına (8760 saat, 1 Ocak 00:00 – 31 Aralık 23:00)
+  getirilir ve `data/processed/pv_bandirma_2023.csv` olarak yazılır. Diğer modüller bu dosyayı kullanır.
+
+| Kontrol | Yapılan | Bandırma 2023'te |
+| --- | --- | --- |
+| Ertesi yıla taşan saatler | Yılın başındaki boş saatlere kaydırılır (ikisi de gece, PV = 0) | 3 saat |
+| Tekrar eden saat | Atılır | 0 |
+| Eksik saat | En fazla 3 saatlik boşluk doğrusal doldurulur, daha uzunu hata verir | 0 |
+| Negatif değer | Sıfırlanır | 0 |
+| Işınım sıfırken üretim | Üretim sıfırlanır | 0 |
+
+  Yani PVGIS verisi zaten temiz geliyor; tek düzeltme saat dilimi kaymasıydı. Kontroller yine de kodda duruyor,
+  başka konum veya yıl indirildiğinde sorun varsa raporlanır.
 - **İlk sonuçlar (Bandırma, 1 kWp):** yıllık **1332 kWh/kWp**, yani 100 kWp için ~133 MWh/yıl.
   Haziranda ortalama günlük tepe 13:00'te 0,67 kW/kWp, Aralıkta 0,34 kW/kWp.
   Aylık üretim Temmuzda en yüksek (174 kWh/kWp), Ocakta en düşük (58 kWh/kWp).
@@ -88,9 +101,48 @@ Gündüz PV fazlası bataryaya (BESS) aktarılıp akşam kullanılabilir (Senary
 - Vergiler (KDV, BTV) dahil edilmedi. Senaryolar arası karşılaştırmada oranlar değişmediği için sade tutuldu.
 - Gece fiyatı puantın yaklaşık yarısı (2,94 / 6,17 ≈ 0,48). Akıllı şarjın tasarrufu buradan gelecek.
 
+## 4. Sabit yük profilleri (konut + ticari)
+
+Site otoparkının bağlı olduğu binaların (daireler, ortak alanlar, küçük dükkânlar) saatlik tüketimi.
+
+- **Kaynak:** BDEW (Alman Enerji ve Su Birliği) standart yük profilleri, `demandlib` Python paketiyle üretilir.
+  Dağıtım şirketlerinin saatlik sayacı olmayan aboneler için kullandığı, yaygın kabul görmüş profillerdir.
+  - **H0 (konut):** sabah ve akşam tepeli. Mevsime göre değişen dinamik katsayı uygulanır (`h0_dyn`): kışın tüketim yazdan yüksek.
+  - **G0 (genel ticari):** mesai saatlerinde yüksek, hafta sonu ve tatilde düşük.
+  - Hafta içi / cumartesi / pazar ayrımı ve kış / yaz / geçiş dönemi profilleri vardır. Çözünürlük 15 dk, biz saatliğe ortalıyoruz.
+- **Türkiye'ye uyarlama:** Resmî tatiller (`holidays` paketi, 2023: Ramazan ve Kurban bayramları dahil 13 gün) pazar gibi işlenir.
+  Türkiye yaz saati uygulamadığı için saatler doğrudan yerel saat kabul edilir.
+- **Ölçek (`config/default.yaml → loads`, TASLAK):** 120 daire × 2400 kWh/yıl = 288 MWh (konut),
+  ticari 80 MWh/yıl. Toplam 368 MWh/yıl. Daire başına tüketim bir varsayım; EPDK/TÜİK verisiyle doğrulanacak.
+  Daire sayısı EM-1'in boyutlandırmasıyla kesinleşecek; değişince yalnızca config değişir.
+- **Çıktı:** `data/processed/yuk_profilleri_2023.csv`, sütunlar `residential_kw`, `commercial_kw`, `total_kw` (kW, saatlik ortalama güç;
+  saatlik olduğu için değer aynı zamanda o saatin kWh'idir).
+- **Temsili gün:** `loads.average_day(df, months=[6], weekdays=[0,1,2,3,4])` seçilen ay ve günlerin 24 saatlik ortalamasını verir.
+  PV tablosu için de çalışır. v0 için temsili gün kararı verilince doğrudan kullanılabilir.
+- **Dikkat edilecekler:**
+  - Profil şekli Almanya'daki tüketim alışkanlıklarından gelir. Türkiye'de akşam tepesi biraz daha geç olabilir ve yaz klima yükü
+    profilde yok. Hocaya sorulacak (aşağıda).
+  - Isınma elektrikle değil doğalgazla yapıldığı varsayılıyor (BDEW H0 da öyle).
+
+**İlk sonuçlar:** Konut tepesi akşam 19:00'da. Aralıkta hafta içi ortalama toplam sabit yük 19:00'da ~75 kW, yıllık tepe 84 kW
+(30 Aralık 19:00). Haziranda öğlen PV (~71 kW) sabit yükü (~53 kW) aşıyor, 19:00'da ise PV 4 kW'a düşmüşken yük 46 kW.
+Yıllık PV üretiminin (133 MWh) %86'sı aynı saatte sabit yük tarafından tüketilebiliyor; kalan ~19 MWh fazla
+bataryaya (BESS) veya araçlara gidebilir.
+
+![PV ve sabit yük](raporlar/hafta2-ym1-pv-yuk.png)
+
+**Proje açısından anlamı:** Akşam sabit yük tepesi (19:00), puant tarifesi (17–22) ve ortalama araç varışı (18:30) aynı saate denk geliyor,
+PV ise o saatte yok. Kontrolsüz şarj, zaten en yüksek olan yükün üstüne biniyor: 400 kVA trafoda sabit yük ~85 kW iken
+istasyon 150 kW'a kadar çekebiliyor.
+
 ## Ekibe ve hocaya sorular
 
 1. **Tarife grubu:** Mesken mi, ticarethane mi? (Öneri: mesken, site otoparkı.)
 2. **Vergiler:** Maliyet KPI'ı vergi hariç mi verilsin? (Öneri: hariç.)
 3. **ACN-Data (YM-2):** Varış saatleri işyeri profiline göre. Enerji ihtiyacını ACN'den, saatleri sentetik dağılımdan almak uygun mu?
 4. **Temsili gün (herkes):** Hangi gün temsil edecek? Öneri: v0 için yıllık ortalama veya Haziran ve Aralık ortalama günleri.
+5. **Yük profili (hoca):** Alman BDEW standart profilleri Türkiye'deki bir site için kabul edilebilir mi, yoksa Türkiye'ye özgü
+   bir profil (ör. dağıtım şirketi verisi) bekleniyor mu?
+6. **Ölçek (EM-1):** Site kaç daire? Daire başına yıllık tüketim için 2400 kWh varsayımı uygun mu?
+7. **İstasyon tipi (YM-2):** YM-2'nin parametre tablosunda konsept "Karma Ticari / AVM Otoparkı" yazıyor, `docs/kapsam.md` ve config
+   ise site otoparkı diyor. Hangisi geçerli? Yük profillerindeki konut/ticari oranı buna göre ayarlanabilir.
