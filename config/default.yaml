@@ -6,6 +6,10 @@
 simulation:
   step_minutes: 15        # zaman adımı
   horizon_hours: 24       # temsili gün (yıllık simülasyon kararı açık)
+  # Temsili gün öğlen başlar, ertesi gün öğlen biter: site otoparkında araçlar akşam gelip
+  # sabah ayrıldığı için gece şarjının tamamı tek pencereye sığar. Tarih kararı açık (YM-1).
+  start: "2023-06-21 12:00"
+  timezone: Europe/Istanbul
 
 site:
   name: Bandirma          # PVGIS konumu (YM-1)
