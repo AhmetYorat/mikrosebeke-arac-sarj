@@ -52,7 +52,8 @@ def run(
         raise ValueError(f"inputs tablosunda eksik sütun: {sorted(missing)}")
 
     dt_h = cfg["simulation"]["step_minutes"] / 60
-    limit_kw = cfg["station"]["power_limit_kw"]
+    station_limit_kw = cfg["station"]["power_limit_kw"]
+    site_limit_kw = cfg["grid"]["site_import_limit_kw"]
     ems.prepare(inputs[INPUT_COLUMNS])
 
     rows, station_rows = [], []
@@ -67,7 +68,8 @@ def run(
             price_tl_per_kwh=row.price_tl_per_kwh,
             vehicles=vehicles,
             bess_soc=battery.soc,
-            station_limit_kw=limit_kw,
+            station_limit_kw=station_limit_kw,
+            site_limit_kw=site_limit_kw,
         ))
         ev_applied = station.apply(ctx, decision.ev_kw)
         bess_kw = battery.apply(decision.bess_kw, dt_h)

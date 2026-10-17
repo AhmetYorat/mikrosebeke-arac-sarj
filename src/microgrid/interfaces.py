@@ -66,7 +66,8 @@ class EmsInputs:
     price_tl_per_kwh: float
     vehicles: list[VehicleRequest]
     bess_soc: float
-    station_limit_kw: float
+    station_limit_kw: float    # istasyon toplamı (ev_kw) için üst sınır
+    site_limit_kw: float       # şebekeden alım (grid_kw) için üst sınır
 
 
 @dataclass(frozen=True)

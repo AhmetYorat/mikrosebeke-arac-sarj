@@ -98,7 +98,7 @@ Beklenen fonksiyon: `build_inputs(cfg, index) -> DataFrame`.
 | Döngüye giden | Hesap |
 | --- | --- |
 | `pv_kw` | `pv_kw_per_kwp × pv.installed_kw` |
-| `base_load_kw` | `total_kw` (hangi profillerin toplama gireceği açık soru 5) |
+| `base_load_kw` | `total_kw` (daireler + ortak alan + dükkânlar; EM-1 kararı) |
 | `price_tl_per_kwh` | config'teki tarife dilimleri |
 
 Neden döngü dosya sütunlarını doğrudan okumuyor: veri katmanı ileride yeni bir profil eklerse ya da sütun adını
@@ -129,11 +129,21 @@ battery.soc: float
 battery.apply(power_kw, dt_h) -> float    # uygulanan güç
 ```
 
-- `EmsInputs`: `ctx`, `pv_kw`, `base_load_kw`, `price_tl_per_kwh`, `vehicles`, `bess_soc`, `station_limit_kw`.
+- `EmsInputs`: `ctx`, `pv_kw`, `base_load_kw`, `price_tl_per_kwh`, `vehicles`, `bess_soc`, `station_limit_kw`, `site_limit_kw`.
 - Kural tabanlı EMS `prepare`'i boş bırakır. MILP (Senaryo 5) tüm günü `prepare`'de çözer, `decide`'da o adımın
   planını okur. İki EMS de aynı arayüzle döngüye takılır; senaryo değiştirmek tek satırdır.
-- İstasyon limitine (`station_limit_kw`) uymak EMS'in işidir. Döngü zorlamaz, çünkü Senaryo 2 (kontrolsüz) limitin
-  aşıldığını göstermek için var.
+- İki sınır var ve ikisine uymak EMS'in işidir (EM-1 kararı):
+
+  | Sınır | Değer | Neyi sınırlar |
+  | --- | --- | --- |
+  | `station_limit_kw` | 150 kW | `ev_kw`: istasyonun toplam çekişi |
+  | `site_limit_kw` | 180 kW | `grid_kw`: tüm sitenin şebekeden alımı |
+  | `grid.transformer_kva` | 400 kVA | fiziksel trafo; pandapower'da yüklenme % olarak görünür |
+
+  200 MWh/yıl ortalama ~23 kW eder; akşam pikinde sabit yük tahminen 45–60 kW (YM-1 profilleri netleştirecek).
+  Bu yüzden istasyon 150 kW'a çıkarsa site 180 kW'ı aşar. Yani akşam asıl
+  bağlayıcı sınır site sınırıdır; EMS istasyona `site_limit_kw − base_load_kw + pv_kw` kadar alan bırakabilir.
+- Döngü sınırları zorlamaz, çünkü Senaryo 2 (kontrolsüz) aşımı göstermek için var. Aşım KPI'da raporlanır.
 
 ### YM-4 + EM-2: Şebeke modeli (`GridModel`)
 
@@ -211,5 +221,5 @@ Python tarafında okuma: `from microgrid.simulink_io import load_simulink_csv`.
 3. **Simulink sütunları:** EM-2 modelde bu sinyalleri ölçebiliyor mu, eksik ya da fazla olan var mı? (EM-2)
 4. **Bara yerleşimi:** PV, BESS ve istasyon aynı barada mı, ayrı barada mı? Gerilim düşümü sonucunu doğrudan
    etkiler. (EM-1, EM-2)
-5. **Sabit yük:** Site otoparkı senaryosunda `base_load_kw` yalnızca konut yükü mü (`residential_kw`), yoksa
-   ticari yük de giriyor mu (`total_kw`)? Sitede dükkân yoksa konut yükü daha gerçekçi. (YM-1, EM-1)
+5. ~~**Sabit yük:** konut mu, toplam mı?~~ Karar (EM-1): `total_kw`. Site 50 daire (120 MWh/yıl) + ortak alan ve
+   dükkânlar (80 MWh/yıl) = 200 MWh/yıl, araç şarjı hariç.
