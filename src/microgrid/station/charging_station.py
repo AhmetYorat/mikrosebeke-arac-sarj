@@ -17,7 +17,7 @@ class ChargingStation:
     def __init__(
         self,
         station_id: str = "Station-01",
-        name: str = "Merkezi Mikro-Şebeke EV Şarj Parkı",
+        name: str = "Site Otoparkı EV Şarj İstasyonu",
         transformer_limit_kw: float = 180.0,
         num_ac_units: int = 8,
         ac_unit_power_kw: float = 22.0,

@@ -10,7 +10,7 @@
 - **Şarj Standartları Araştırıldı:** AC Seviye-2 (Tip-2, 22 kW üç faz), DC Hızlı Şarj (CCS2 / Combo-2, 50 kW ve 150 kW) ve Li-ion bataryalar için Sabit Akım - Sabit Gerilim (CC-CV) şarj eğrisi mekanizması incelendi.
 - **İstasyon Parametre Listesi Taslağı Hazırlandı:** İstasyon tipi, ünite sayıları, nominal güç limitleri, trafo sınırı ve incelenecek araç batarya havuzu EM-1 ile koordine edilmek üzere taslak olarak çıkarıldı.
 - **MathWorks Referans Örneği İncelendi:** Simscape Electrical dokümantasyonundaki `MicrogridEVToGridExample` (Microgrid with Electric Vehicles V2G Support) örneği incelendi. Örnekteki araçların sadece 2 sabit batarya grubu olarak modellendiği, bizim katkımızın ise araçların tek tek gelip bağlandığı, CC-CV eğrisine sahip ve ünite bazlı yönetilen gerçekçi bir istasyon olacağı belirlendi.
-- **Ekip İçi Kapsam Kararına Katkı Sağlandı:** EM-1 ve YM ekibiyle birlikte istasyon tipinin "Karma AVM / Ofis & Ticari Otopark" olması ve Python tarafında 1 temsili günün (24 saat, 15 dakikalık adımlarla) modellenmesi yönünde ortak karar taslağı oluşturuldu.
+- **Ekip İçi Kapsam Kararına Katkı Sağlandı:** EM-1 ve YM ekibiyle birlikte istasyon tipinin "Site Otoparkı (Konut / Rezidans Mikro-Şebekesi)" olması ve Python tarafında 1 temsili günün (24 saat, 15 dakikalık adımlarla) modellenmesi yönünde ortak karar taslağı oluşturuldu.
 
 ---
 
@@ -20,7 +20,7 @@
 - **Nominal Güç:** 22 kW (400V AC, 32A, Üç Faz).
 - **Özellik:** Şebekeden gelen alternatif akım doğrudan araca iletilir. Doğrultma işlemi aracın yerleşik şarj cihazı (On-Board Charger - OBC) tarafından yapılır.
 - **Darboğaz Kısıtı:** Birçok ticari binek EV'nin dahili OBC kapasitesi 11 kW ile sınırlıdır (Örn: Tesla Model 3 standart, Peugeot e-208). İstasyon 22 kW sunsa dahi araç en fazla 11 kW çekebilir. Bu kısıt modelimizde araç ve ünite gücünün minimumu (`min(P_arac, P_unite)`) şeklinde dikkate alınacaktır.
-- **Kullanım Senaryosu:** 3 saat ve üzeri uzun süreli kalışlar (Ofis, AVM, gece parklanma).
+- **Kullanım Senaryosu:** 3 saat ve üzeri uzun süreli kalışlar (Site sakinlerinin akşamdan sabaha gece boyu parklanması).
 
 ### B. DC Hızlı Şarj Standardı (CCS2 / Combined Charging System)
 - **Nominal Güç:** 50 kW (veya 150 kW Ultra Hızlı Şarj).
@@ -40,7 +40,7 @@ Li-ion bataryaların güvenli şarjı ve hücre aşırı gerilimini önlemek iç
 
 | Parametre | Taslak Değer | Gerekçe / Açıklama |
 | :--- | :--- | :--- |
-| **İstasyon Konsepti** | Karma Ticari / AVM Otoparkı | Hem uzun süreli (AC) hem hızlı (DC) şarj dinamiklerini incelemek için en uygun yapı |
+| **İstasyon Konsepti** | Konut / Site Otoparkı | Akşam eve dönüş piki (18:30) ve gece boyu uzun süreli kalış sayesinde akıllı şarj ve V2G için en uygun yapı (8 AC ev tipi + 2 DC ortak acil şarj) |
 | **AC Şarj Soketi Sayısı** | 8 Adet | Her biri 22 kW Tip-2 (Toplam teorik AC güç: 176 kW) |
 | **DC Şarj Soketi Sayısı** | 2 Adet | Her biri 50 kW CCS2 (Toplam teorik DC güç: 100 kW) |
 | **İstasyon Toplam Kurulu Güç** | **276 kW** | Tüm soketlerin tam güç çektiğindeki teorik tavan |

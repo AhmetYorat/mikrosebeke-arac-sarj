@@ -12,7 +12,7 @@ def main():
 
     station = ChargingStation(
         station_id="STATION-01",
-        name="Merkezi Mikro-Şebeke EV Parkı",
+        name="Site Otoparkı EV Şarj İstasyonu",
         transformer_limit_kw=180.0,
         num_ac_units=8,
         ac_unit_power_kw=22.0,

@@ -54,12 +54,12 @@ VEHICLE_CATALOG = [
 
 class DemandModel:
     """
-    Hafta 2 Araç Talep Modeli:
+    Hafta 2 Araç Talep Modeli (Site Otoparkı - Konut / Rezidans Profili):
     Olasılık dağılımlarına göre 24 saatlik sentetik araç akışı üretir.
     
-    Dağılımlar:
-    - Akşam Piki: Normal(18.0, 1.6h)
-    - Gündüz: Normal(11.5, 2.5h)
+    Site Sakinleri Davranış Dağılımları:
+    - Akşam Eve Dönüş Piki (%65): Normal(18.0, 1.6h) - Gece boyu uzun bağlı kalma
+    - Gündüz / Evden Çalışan / Misafir (%35): Normal(11.5, 2.5h)
     - Geliş SOC: Uniform(0.18, 0.45)
     - Hedef SOC: Uniform(0.85, 1.00)
     """

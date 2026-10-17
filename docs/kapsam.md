@@ -1,6 +1,6 @@
 # Kapsam kararı
 
-Durum: **taslak**. 15 Ekim Perşembe ders sonrası toplantıda teyit edilecek.
+Durum: **kesinleşti**. İstasyon tipi olarak **Site Otoparkı** seçildi.
 
 ## İstasyon tipi: site otoparkı
 
@@ -28,9 +28,8 @@ Diğer seçenekler neden geri planda:
 
 ## Toplantıda kapatılacak açık sorular
 
-1. **İstasyon tipi teyidi:** site otoparkı kesinleşsin mi?
-2. **DC üniteler:** Site otoparkında araçlar gece boyu kaldığı için DC hızlı şarj tipik değil. 2 × DC 50 kW
-   kalsın mı (Simulink'te AC/DC dallarını ayrı göstermek için), yoksa yalnızca AC mi? (EM-1 + YM-2)
+1. **İstasyon tipi teyidi:** **Site otoparkı kesinleşti.** (Akşam geliş, gece boyu kalış, puant tepe tıraşlama ve V2G için en uygun model).
+2. **DC üniteler:** 2 × DC 50 kW ünitenin kalması kararlaştırıldı (Acil dolum ihtiyacı olan site sakinleri/misafirler ve Simulink modelinde AC/DC dönüştürücü dallarını ayrı doğrulamak için).
 3. **Zaman kapsamı:** 1 temsili gün mü, hafta/yıl mı? Öneri: v0'a kadar temsili gün, genişletme Hafta 6'da.
 4. **Konum:** PVGIS verisi için hangi şehir? (YM-1)
 5. **Boyutlar:** araç sayısı, PV kW, BESS kWh/kW, trafo kVA. (EM-1, Hafta 2 parametre tablosu)

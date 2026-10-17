@@ -34,7 +34,7 @@ Elektrikli araçların rastgele gelişlerini ve oluşturdukları yükü simüle 
    - **Akşam Piki (%65):** $T_{\text{arr}} \sim \mathcal{N}(\mu = 18.0, \, \sigma = 1.6)$ saat. *(Proje föyü Madde 5'teki Normal(18:00, 1.5h) dağılımı referans alınmıştır).*
    - **Gündüz Varışları (%35):** $T_{\text{arr}} \sim \mathcal{N}(\mu = 11.5, \, \sigma = 2.5)$ saat.
 2. **Kalış Süresi Dağılımı ($T_{\text{stay}}$):**
-   - AC soketler (Tip-2 22 kW): $\text{Uniform}(2.5, \, 9.0)$ saat (Ofis/AVM ve gece parklanma).
+   - AC soketler (Tip-2 22 kW): $\text{Uniform}(2.5, \, 9.0)$ saat (Site sakinleri gece boyu parklanma).
    - DC hızlı şarj soketleri (CCS2 50 kW): $\text{Uniform}(0.5, \, 2.0)$ saat (Kısa süreli dolum).
 3. **Başlangıç ve Hedef Şarj Seviyesi:**
    - Geliş Şarjı: $SOC_{\text{arr}} \sim \text{Uniform}(0.18, \, 0.45)$ (İstasyona düşük şarjla varış).
@@ -69,7 +69,7 @@ Tasarlanan `ChargingStation`, `ElectricVehicle` ve `DemandModel` sınıfları `t
 ======================================================================
 ⚡ YM-2 HAFTA 2: SINIF TASARIMI VE TALEP MODELİ DOĞRULAMA TESTİ ⚡
 ======================================================================
-İstasyon: Merkezi Mikro-Şebeke EV Parkı
+İstasyon: Site Otoparkı EV Şarj İstasyonu
 Soket Sayısı: 10 Adet (8 x 22.0 kW AC + 2 x 50.0 kW DC)
 Kurulu Güç  : 276.0 kW | Trafo Sınırı: 180.0 kW
 ----------------------------------------------------------------------

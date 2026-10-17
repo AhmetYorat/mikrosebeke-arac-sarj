@@ -10,10 +10,10 @@
 
 | Parametre Adı | Değer | Birim | Kaynak / Açıklama | İlgili Rol |
 | :--- | :--- | :--- | :--- | :--- |
-| **İstasyon Konsepti** | Karma Ticari / AVM Otoparkı | - | EM-1 ve YM-2 ortak kararı | EM-1, YM-2 |
-| **AC Şarj Soketi Sayısı** | 8 | Adet | Tip-2 Mennekes standardı | EM-1, YM-2 |
+| **İstasyon Konsepti** | Konut / Site Otoparkı | - | EM-1 ve YM-2 ortak kararı (bkz. `docs/kapsam.md`, `config/default.yaml`) | EM-1, YM-2 |
+| **AC Şarj Soketi Sayısı** | 8 | Adet | Tip-2 Mennekes standardı (Site sakinlerinin ev tipi gece parklanması ve şarjı) | EM-1, YM-2 |
 | **AC Soket Nominal Gücü** | 22.0 | kW | 3 Faz, 400V, 32A | EM-1, YM-2 |
-| **DC Şarj Soketi Sayısı** | 2 | Adet | CCS2 Combo standardı | EM-1, YM-2 |
+| **DC Şarj Soketi Sayısı** | 2 | Adet | CCS2 Combo standardı (Site sakinleri acil dolum / misafir araçlar ve Simulink DC dalı) | EM-1, YM-2 |
 | **DC Soket Nominal Gücü** | 50.0 | kW | Hızlı şarj doğrultucu ünitesi | EM-1, YM-2 |
 | **İstasyon Toplam Kurulu Güç** | **276.0** | **kW** | $(8 \times 22) + (2 \times 50)$ kW teorik tavan | EM-1, YM-4 |
 | **Trafo / Bağlantı Kapasitesi** | **180.0** | **kW** | Şebeke bağlantı sınırı (EMS bu sınırı korumalıdır) | EM-1, YM-3 |
