@@ -39,11 +39,11 @@ pv:
 loads:
   # Sabit yükler (site binaları), saatlik profil (YM-1). Şekil BDEW standart yük profillerinden
   # (H0 konut, G0 ticari) gelir, büyüklük yıllık tüketimle ölçeklenir. Kaynak: docs/veri-kaynaklari.md
-  # TASLAK: daire sayısı ve tüketimler EM-1 boyutlandırmasıyla kesinleşecek.
+  # EM-1 kararı: 50 daire (120 MWh/yıl) + ortak alan/dükkânlar (80 MWh/yıl) = 200 MWh/yıl, araç şarjı hariç.
   year: 2023              # PVGIS yılıyla aynı tutulur ki haftanın günleri ve tatiller eşleşsin
   residential:
-    households: 120       # site daire sayısı
-    kwh_per_household: 2400   # daire başına yıllık tüketim (varsayım, doğrulanacak)
+    households: 50        # site daire sayısı (EM-1): 50 × 2400 = 120 MWh/yıl
+    kwh_per_household: 2400   # daire başına yıllık tüketim (başlangıç varsayımı)
   commercial:
     annual_kwh: 80000     # ortak alanlar (asansör, aydınlatma, hidrofor) + sitedeki küçük dükkânlar
 

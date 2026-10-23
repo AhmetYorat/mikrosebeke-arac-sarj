@@ -112,9 +112,9 @@ Site otoparkının bağlı olduğu binaların (daireler, ortak alanlar, küçük
   - Hafta içi / cumartesi / pazar ayrımı ve kış / yaz / geçiş dönemi profilleri vardır. Çözünürlük 15 dk, biz saatliğe ortalıyoruz.
 - **Türkiye'ye uyarlama:** Resmî tatiller (`holidays` paketi, 2023: Ramazan ve Kurban bayramları dahil 13 gün) pazar gibi işlenir.
   Türkiye yaz saati uygulamadığı için saatler doğrudan yerel saat kabul edilir.
-- **Ölçek (`config/default.yaml → loads`, TASLAK):** 120 daire × 2400 kWh/yıl = 288 MWh (konut),
-  ticari 80 MWh/yıl. Toplam 368 MWh/yıl. Daire başına tüketim bir varsayım; EPDK/TÜİK verisiyle doğrulanacak.
-  Daire sayısı EM-1'in boyutlandırmasıyla kesinleşecek; değişince yalnızca config değişir.
+- **Ölçek (`config/default.yaml → loads`, EM-1 kararı):** 50 daire × 2400 kWh/yıl = 120 MWh (konut),
+  ortak alan ve dükkânlar 80 MWh/yıl. Toplam 200 MWh/yıl, araç şarjı hariç.
+  Daire başına 2400 kWh bir başlangıç varsayımı; değişirse yalnızca config değişir.
 - **Çıktı:** `data/processed/yuk_profilleri_2023.csv`, sütunlar `residential_kw`, `commercial_kw`, `total_kw` (kW, saatlik ortalama güç;
   saatlik olduğu için değer aynı zamanda o saatin kWh'idir).
 - **Temsili gün:** `loads.average_day(df, months=[6], weekdays=[0,1,2,3,4])` seçilen ay ve günlerin 24 saatlik ortalamasını verir.
@@ -124,23 +124,24 @@ Site otoparkının bağlı olduğu binaların (daireler, ortak alanlar, küçük
     profilde yok. Hocaya sorulacak (aşağıda).
   - Isınma elektrikle değil doğalgazla yapıldığı varsayılıyor (BDEW H0 da öyle).
 
-**İlk sonuçlar:** Konut tepesi akşam 19:00'da. Aralıkta hafta içi ortalama toplam sabit yük 19:00'da ~75 kW, yıllık tepe 84 kW
-(30 Aralık 19:00). Haziranda öğlen PV (~71 kW) sabit yükü (~53 kW) aşıyor, 19:00'da ise PV 4 kW'a düşmüşken yük 46 kW.
-Yıllık PV üretiminin (133 MWh) %86'sı aynı saatte sabit yük tarafından tüketilebiliyor; kalan ~19 MWh fazla
-bataryaya (BESS) veya araçlara gidebilir.
+**İlk sonuçlar:** Aralıkta hafta içi ortalama sabit yük 18:00'de en yüksek (~38 kW), 19:00'da ~37 kW. Yıllık tepe 41 kW.
+Haziranda öğlen PV (~71 kW) sabit yükün (~31 kW) iki katından fazla; 19:00'da ise PV 4 kW'a düşmüşken yük 24 kW.
+Yıllık PV üretiminin (133 MWh) %59'u aynı saatte sabit yük tarafından tüketilebiliyor; kalan ~54 MWh fazla
+bataryaya (BESS) veya araçlara gidebilir. Şebekeye satış şimdilik modelde yok (sonraki aşamada eklenecek).
 
 ![PV ve sabit yük](raporlar/hafta2-ym1-pv-yuk.png)
 
 **Proje açısından anlamı:** Akşam sabit yük tepesi (19:00), puant tarifesi (17–22) ve ortalama araç varışı (18:30) aynı saate denk geliyor,
-PV ise o saatte yok. Kontrolsüz şarj, zaten en yüksek olan yükün üstüne biniyor: 400 kVA trafoda sabit yük ~85 kW iken
-istasyon 150 kW'a kadar çekebiliyor.
+PV ise o saatte yok. Kontrolsüz şarj, zaten en yüksek olan yükün üstüne biniyor: akşam sabit yük ~38 kW iken istasyon
+150 kW'a kadar çekebiliyor. Toplam ~188 kW, sitenin şebekeden çekebileceği 180 kW sınırını aşıyor (EM-1 sınırları:
+istasyon 150 kW, site 180 kW, trafo 400 kVA).
 
 ## Ekibe ve hocaya sorular
 
 1. **Tarife grubu:** Mesken mi, ticarethane mi? (Öneri: mesken, site otoparkı.)
 2. **Vergiler:** Maliyet KPI'ı vergi hariç mi verilsin? (Öneri: hariç.)
 3. **ACN-Data (YM-2):** Varış saatleri işyeri profiline göre. Enerji ihtiyacını ACN'den, saatleri sentetik dağılımdan almak uygun mu?
-4. **Temsili gün (herkes):** Hangi gün temsil edecek? Öneri: v0 için yıllık ortalama veya Haziran ve Aralık ortalama günleri.
+4. ~~**Temsili gün:**~~ Karar: Haziran ve Aralık'ın hafta içi ortalama günleri.
 5. **Yük profili (hoca):** Alman BDEW standart profilleri Türkiye'deki bir site için kabul edilebilir mi, yoksa Türkiye'ye özgü
    bir profil (ör. dağıtım şirketi verisi) bekleniyor mu?
 6. **Ölçek (EM-1):** Site kaç daire? Daire başına yıllık tüketim için 2400 kWh varsayımı uygun mu?
