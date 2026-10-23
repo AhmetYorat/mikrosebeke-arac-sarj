@@ -33,7 +33,8 @@ streamlit run dashboard/app.py
 
 `pytest` yeşil geçmeli, ikinci komut tarayıcıda dashboard'u açmalı.
 
-Simülasyon döngüsünü sahte modüllerle denemek için: `python -m microgrid.sim` (sonuçlar `results/` altına yazılır).
+Simülasyon döngüsünü sahte modüller ve pandapower ağıyla denemek için: `python -m microgrid.sim` (sonuçlar `results/` altına yazılır).
+Tek seferlik yük akışı: `python -m microgrid.grid` (bkz. [docs/sebeke-modeli.md](docs/sebeke-modeli.md)).
 
 ## Klasör yapısı
 

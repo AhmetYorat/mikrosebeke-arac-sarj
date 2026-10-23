@@ -160,7 +160,8 @@ run(ctx, GridInjections(pv_kw, base_load_kw, ev_kw, bess_kw)) -> GridResult
 
 `GridResult`: `converged`, `min_vm_pu`, `max_vm_pu`, `max_line_loading_pct`, `trafo_loading_pct`.
 
-Hangi gücün hangi baraya bağlandığı ağ modelinin içindedir (EM-2 ile Hafta 3). Şebeke modeli verilmezse döngü
+Hangi gücün hangi baraya bağlandığı ağ modelinin içindedir: `config/default.yaml → grid.network.placement`.
+Uygulaması `microgrid.grid.PandapowerGrid`, ayrıntılar [sebeke-modeli.md](sebeke-modeli.md). Şebeke modeli verilmezse döngü
 çalışmaya devam eder, bu sütunlar boş kalır.
 
 ## 4. Çıktılar
