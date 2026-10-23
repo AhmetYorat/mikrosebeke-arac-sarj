@@ -33,4 +33,8 @@ Diğer seçenekler neden geri planda:
    kalsın mı (Simulink'te AC/DC dallarını ayrı göstermek için), yoksa yalnızca AC mi? (EM-1 + YM-2)
 3. **Zaman kapsamı:** 1 temsili gün mü, hafta/yıl mı? Öneri: v0'a kadar temsili gün, genişletme Hafta 6'da.
 4. **Konum:** PVGIS verisi için hangi şehir? (YM-1)
-5. **Boyutlar:** araç sayısı, PV kW, BESS kWh/kW, trafo kVA. (EM-1, Hafta 2 parametre tablosu)
+5. **Boyutlar:** Kısmen karar verildi (EM-1, Hafta 2):
+   - Site: 50 daire × 2.400 kWh/yıl = 120 MWh/yıl, ortak alan + dükkân 80 MWh/yıl; araç şarjı hariç 200 MWh/yıl.
+   - PV: 100 kWp, 30° eğim, güneye dönük.
+   - Sınırlar: istasyon 150 kW, site toplamı 180 kW, trafo 400 kVA.
+   - Açık: araç sayısı, BESS kWh/kW, DC ünite sorusu.
