@@ -6,6 +6,8 @@ pulp
 streamlit>=1.36
 plotly
 matplotlib
+demandlib     # BDEW standart yük profilleri (YM-1 yük modeli)
+holidays      # Türkiye resmî tatilleri
 pytest
 
 # Projenin kendi paketi (src/microgrid). Böylece her yerden `import microgrid` çalışır.
