@@ -101,7 +101,7 @@ def clean(df, year, max_gap_hours=3) -> tuple[pd.DataFrame, dict]:
     df = df[~df.index.duplicated()]
 
     hours = pd.date_range(f"{year}-01-01", f"{year + 1}-01-01", freq="h", inclusive="left", tz=LOCAL_TZ)
-    overflow = df[df.index >= hours[-1] + pd.Timedelta(hours=1)]
+    overflow = df[df.index >= hours[-1] + pd.to_timedelta(1, unit="h")]
     df = df[df.index.year == year]
     head_gap = hours[hours < df.index.min()] if len(df) else hours
     n = min(len(overflow), len(head_gap))
