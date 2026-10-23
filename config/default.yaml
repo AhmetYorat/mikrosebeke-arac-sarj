@@ -51,6 +51,14 @@ loads:
   commercial:
     annual_kwh: 80000     # ortak alanlar (asansör, aydınlatma, hidrofor) + sitedeki küçük dükkânlar
 
+inputs:
+  # Döngüye giden PV/yük/fiyat tablosu nasıl kurulur (YM-1, microgrid.data.inputs.build_inputs).
+  # average_day: simülasyon tarihinin ayına ait ortalama gün (ekip kararı: Haziran ve Aralık).
+  #              Aralık için yalnızca simulation.start tarihini Aralık'a çekmek yeter.
+  # actual:      verideki gerçek gün (tarih PVGIS/yük verisinin yılında olmalı).
+  mode: average_day
+  weekdays_only: true     # ortalama günde yalnızca hafta içi günler
+
 bess:
   capacity_kwh: 200
   power_kw: 100
