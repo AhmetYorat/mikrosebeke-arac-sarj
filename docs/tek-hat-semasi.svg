@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mikro-Şebeke Tek Hat Şeması - Site Otoparkı -->
+<svg width="800" height="500" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Styles -->
+  <style>
+    .bus { fill: #1a73e8; stroke: #0d47a1; stroke-width: 2; }
+    .source { fill: #34a853; stroke: #1b5e20; stroke-width: 2; }
+    .load { fill: #ea4335; stroke: #b71c1c; stroke-width: 2; }
+    .storage { fill: #f9ab00; stroke: #f57f17; stroke-width: 2; }
+    .line { fill: none; stroke: #5f6368; stroke-width: 2; }
+    .text { font-family: Arial, sans-serif; font-size: 14px; fill: #333; }
+    .text-small { font-family: Arial, sans-serif; font-size: 12px; fill: #555; }
+    .label { text-anchor: middle; dominant-baseline: middle; }
+  </style>
+
+  <!-- Ana Bara (PCC) -->
+  <rect class="bus" x="350" y="200" width="100" height="40" rx="5"/>
+  <text class="text" x="400" y="220" class="label">PCC Barası (400V)</text>
+
+  <!-- Ana Şebeke Bağlantısı -->
+  <line class="line" x1="350" y1="220" x2="200" y2="220"/>
+  <text class="text-small" x="275" y="210" class="label">400 kVA Trafo</text>
+  <text class="text-small" x="275" y="230" class="label">Şebeke →</text>
+
+  <!-- PV Dizisi -->
+  <rect class="source" x="50" y="100" width="80" height="60" rx="5"/>
+  <text class="text" x="90" y="130" class="label">PV Dizisi</text>
+  <text class="text-small" x="90" y="150" class="label">100 kWp</text>
+  
+  <!-- PV İnverter -->
+  <rect class="source" x="150" y="120" width="40" height="30" rx="3"/>
+  <text class="text-small" x="170" y="135" class="label">Inverter</text>
+  
+  <!-- PV Bağlantı -->
+  <line class="line" x1="190" y1="135" x2="350" y2="220"/>
+  <text class="text-small" x="270" y="160" class="label">PV</text>
+
+  <!-- Batarya (BESS) -->
+  <rect class="storage" x="50" y="300" width="80" height="60" rx="5"/>
+  <text class="text" x="90" y="320" class="label">BESS</text>
+  <text class="text-small" x="90" y="340" class="label">200 kWh</text>
+  <text class="text-small" x="90" y="355" class="label">100 kW</text>
+  
+  <!-- BESS Inverter -->
+  <rect class="storage" x="150" y="320" width="40" height="30" rx="3"/>
+  <text class="text-small" x="170" y="335" class="label">BESS</text>
+  <text class="text-small" x="170" y="350" class="label">Inverter</text>
+  
+  <!-- BESS Bağlantı -->
+  <line class="line" x1="190" y1="335" x2="350" y2="220"/>
+  <text class="text-small" x="270" y="300" class="label">BESS</text>
+
+  <!-- EV Şarj İstasyonu -->
+  <rect class="load" x="600" y="150" width="120" height="80" rx="5"/>
+  <text class="text" x="660" y="175" class="label">EV Şarj</text>
+  <text class="text-small" x="660" y="195" class="label">20 Araç</text>
+  <text class="text-small" x="660" y="210" class="label">2 × DC 50 kW</text>
+  <text class="text-small" x="660" y="225" class="label">8 × AC 22 kW</text>
+  
+  <!-- EV Şarj Bağlantı -->
+  <line class="line" x1="450" y1="220" x2="600" y2="190"/>
+  <text class="text-small" x="525" y="210" class="label">EV Load</text>
+
+  <!-- Sabit Yükler -->
+  <rect class="load" x="600" y="300" width="120" height="60" rx="5"/>
+  <text class="text" x="660" y="320" class="label">Sabit Yük</text>
+  <text class="text-small" x="660" y="340" class="label">Bina, Aydınlatma</text>
+  
+  <!-- Sabit Yük Bağlantı -->
+  <line class="line" x1="450" y1="220" x2="600" y2="330"/>
+  <text class="text-small" x="525" y="270" class="label">Fixed Load</text>
+
+  <!-- EMS Beyin -->
+  <rect style="fill: #7986cb; stroke: #3949ab; stroke-width: 2;" x="350" y="380" width="100" height="60" rx="5"/>
+  <text class="text" x="400" y="410" class="label" style="fill: white;">EMS</text>
+  <text class="text-small" x="400" y="430" class="label" style="fill: white;">Strateji</text>
+  
+  <!-- EMS Bağlantılar -->
+  <line class="line" x1="400" y1="380" x2="400" y2="240" stroke-dasharray="5,3"/>
+  <text class="text-small" x="410" y="310" style="fill: #7986cb;">Kontrol Sinyali</text>
+
+  <!-- Simulink Entegrasyonu -->
+  <rect style="fill: #00bcd4; stroke: #006064; stroke-width: 2;" x="350" y="470" width="100" height="20" rx="3"/>
+  <text class="text-small" x="400" y="480" class="label" style="fill: white;">Simulink (Dinamik)</text>
+
+  <!-- Açıklama Kutusu -->
+  <rect x="50" y="420" width="700" height="60" fill="none" stroke="#999" stroke-width="1"/>
+  <text class="text-small" x="60" y="435">Not: Tek hat şeması - tüm güç akışı PCC barası üzerinden kontrol edilir.</text>
+  <text class="text-small" x="60" y="450">PV ve BESS güçleri PCC barasına bağlı; EV şarj ve sabit yükler PCC'den beslenir.</text>
+  <text class="text-small" x="60" y="465">EMS, tüm bileşenleri kontrol ederek güç dengesini sağlar.</text>
+
+</svg>
