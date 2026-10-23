@@ -50,7 +50,9 @@ hesaplar; böylece iki modülün farklı şebeke değeri üretmesi imkânsız ol
 - Adım: `simulation.step_minutes` (15 dk). Ufuk: `horizon_hours` (24 saat).
 - **Temsili gün öğlen başlar** (`simulation.start: 2023-06-21 12:00`) ve ertesi gün öğlen biter. Site otoparkında
   araçlar akşam gelip sabah ayrılıyor; gece yarısında başlayan bir gün akşam gelen aracın şarjını ikiye bölerdi.
-- Tarih (21 Haziran) yer tutucudur. Hangi günün temsili gün olacağı açık (YM-1'in önerisi: Haziran ve Aralık ortalama günleri).
+- Temsili günler: **Haziran ve Aralık'ın hafta içi ortalama günleri** (YM-1, `loads.average_day`). Simülasyon her biri
+  için ayrı çalışır. Site sınırı (180 kW) yalnızca Aralık'ta aşıldığı için iki gün de gerekli. Config'teki tarih yalnızca saat
+  ekseni içindir; `build_inputs` ortalama günün saatlerini bu eksene (12:00 → ertesi gün 12:00) yerleştirir.
 
 ## 2. Döngü (YM-4)
 
