@@ -25,8 +25,8 @@ from microgrid.data import loads as load_profiles
 from microgrid.data.loads import average_day
 from microgrid.data.pv import hourly_pv_kw
 from microgrid.data.tariff import price_series
+from microgrid.interfaces import INPUT_COLUMNS
 
-INPUT_COLUMNS = ["pv_kw", "base_load_kw", "price_tl_per_kwh"]
 PV_ANCHOR_MIN = 10
 LOAD_ANCHOR_MIN = 30
 
@@ -48,8 +48,8 @@ def _interp_day(day: pd.Series, anchor_min, index) -> np.ndarray:
 
 def _interp_actual(series: pd.Series, anchor_min, index) -> np.ndarray:
     """Saatlik gerçek seriyi adımlara çevirir; adımlar verinin kapsadığı aralıkta olmalı."""
-    src = series.index + pd.Timedelta(minutes=anchor_min)
-    if index[0] < src[0] - pd.Timedelta(hours=1) or index[-1] > src[-1] + pd.Timedelta(hours=1):
+    src = series.index + pd.to_timedelta(anchor_min, unit="min")
+    if index[0] < src[0] - pd.to_timedelta(1, unit="h") or index[-1] > src[-1] + pd.to_timedelta(1, unit="h"):
         raise ValueError(
             f"{index[0]} – {index[-1]} veri aralığının ({series.index[0]} – {series.index[-1]}) dışında. "
             "inputs.mode: average_day kullan ya da simulation.start'ı veri yılına çek."
