@@ -137,6 +137,25 @@ PV ise o saatte yok. Kontrolsüz şarj, zaten en yüksek olan yükün üstüne b
 150 kW'a kadar çekebiliyor. Toplam ~188 kW, sitenin şebekeden çekebileceği 180 kW sınırını aşıyor (EM-1 sınırları:
 istasyon 150 kW, site 180 kW, trafo 400 kVA).
 
+## 5. Döngüye giden girdiler (`build_inputs`)
+
+Veri katmanının döngüye verdiği tek tablo (arayüz sözleşmesi, YM-1 bölümü):
+
+| Sütun | Birim | Nereden |
+| --- | --- | --- |
+| `pv_kw` | kW | PVGIS `pv_kw_per_kwp × pv.installed_kw` (`data/pv.py`) |
+| `base_load_kw` | kW | Yük profilleri `total_kw` (daireler + ortak alan + dükkânlar) |
+| `price_tl_per_kwh` | TL/kWh | Config'teki tarife dilimleri (`data/tariff.py`) |
+
+- **15 dakikaya çevirme:** doğrusal ara değerleme. PV değeri saatin 10. dakikasına (PVGIS'in güneş konumunu hesapladığı an),
+  yük değeri saatin ortasına (saatlik ortalama) yerleştirilir. Günlük enerji korunur (fark < %2, testli).
+- **`inputs.mode: average_day`:** Simülasyon tarihinin ayına ait ortalama gün (`weekdays_only: true` → hafta içi).
+  Ekip kararı: Haziran ve Aralık. Ay, `simulation.start` tarihinden alınır; yıl önemli değildir.
+- **`inputs.mode: actual`:** Verideki gerçek gün. Tarih veri yılında (2023) olmalı, değilse açıklayıcı hata verir.
+- **Fiyat:** Adımın başlangıç saatine göre. Dilim sınırları tam saat olduğu için bir adım iki dilime bölünmez.
+- **PV modeli doğrulaması:** `pv_from_irradiance` (ışınım + hava sıcaklığı, NOCT 45 °C, −%0,4/°C, %14 kayıp)
+  PVGIS üretimiyle R² = 0,999, yıllık fark %+3,5.
+
 ## Ekibe ve hocaya sorular
 
 1. ~~**Tarife grubu:**~~ Karar: mesken (AG tek terim, 8 kWh/gün üstü), EPDK 4 Nisan 2026 tablosundan doğrulandı.
