@@ -40,6 +40,17 @@ pv:
   azimuth_deg: 0          # PVGIS: 0 = güney
   loss_percent: 14        # kablo, inverter, kirlenme kayıpları (PVGIS varsayılanı)
 
+loads:
+  # Sabit yükler (site binaları), saatlik profil (YM-1). Şekil BDEW standart yük profillerinden
+  # (H0 konut, G0 ticari) gelir, büyüklük yıllık tüketimle ölçeklenir. Kaynak: docs/veri-kaynaklari.md
+  # EM-1 kararı: 50 daire (120 MWh/yıl) + ortak alan/dükkânlar (80 MWh/yıl) = 200 MWh/yıl, araç şarjı hariç.
+  year: 2023              # PVGIS yılıyla aynı tutulur ki haftanın günleri ve tatiller eşleşsin
+  residential:
+    households: 50        # site daire sayısı (EM-1): 50 × 2400 = 120 MWh/yıl
+    kwh_per_household: 2400   # daire başına yıllık tüketim (başlangıç varsayımı)
+  commercial:
+    annual_kwh: 80000     # ortak alanlar (asansör, aydınlatma, hidrofor) + sitedeki küçük dükkânlar
+
 bess:
   capacity_kwh: 200
   power_kw: 100
@@ -57,9 +68,10 @@ grid:
   max_loading_percent: 100
 
 tariff:
-  # EPDK üç zamanlı mesken tarifesi, 4 Nisan 2026 dönemi, vergiler hariç (YM-1).
-  # Kaynak ve doğrulama durumu: docs/veri-kaynaklari.md
+  # EPDK tarife tablosu, 4 Nisan 2026, vergiler hariç (YM-1, resmî tablodan doğrulandı).
+  # AG tek terim, mesken (8 kWh/gün üstü), çok zamanlı: fiyat = enerji bedeli + dağıtım bedeli (242,4900 kr/kWh).
+  # Saatler: sürekli yaz saatine göre güncellenmiş sayaçlar için yıl boyunca geçerli dilimler.
   periods:
-    - {name: gunduz, start: 6,  end: 17, price_tl_per_kwh: 4.38}
-    - {name: puant,  start: 17, end: 22, price_tl_per_kwh: 6.17}
-    - {name: gece,   start: 22, end: 6,  price_tl_per_kwh: 2.94}
+    - {name: gunduz, start: 6,  end: 17, price_tl_per_kwh: 4.3755}   # 195,0640 + 242,4900 kr
+    - {name: puant,  start: 17, end: 22, price_tl_per_kwh: 6.1725}   # 374,7551 + 242,4900 kr
+    - {name: gece,   start: 22, end: 6,  price_tl_per_kwh: 2.9386}   #  51,3656 + 242,4900 kr
