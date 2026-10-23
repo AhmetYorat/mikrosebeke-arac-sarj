@@ -9,7 +9,7 @@ Verinin nasıl indirileceği: [data/README.md](../data/README.md).
 | --- | --- | --- | --- | --- |
 | Güneş ışınımı / PV üretimi | PVGIS v5.3 (AB JRC) | Açık API, anahtar yok | İndirildi ve temizlendi (Bandırma 2023) | YM-1 PV modeli → EMS, döngü |
 | EV şarj oturumları | Caltech ACN-Data | API, ücretsiz token | Kod hazır, token bekleniyor | YM-2 talep modeli |
-| Elektrik tarifesi | EPDK üç zamanlı tarife | Elle (EPDK tablosu) | Fiyatlar girildi, resmi tablodan doğrulanacak | YM-3 EMS, YM-1 KPI (maliyet) |
+| Elektrik tarifesi | EPDK üç zamanlı tarife | Elle (EPDK tablosu) | Resmî tablodan doğrulandı (4 Nisan 2026) | YM-3 EMS, YM-1 KPI (maliyet) |
 | Sabit yük profilleri | BDEW H0/G0 (demandlib) + Türkiye tatilleri | Paket içinde, internet gerekmez | Hazır, konut + ticari saatlik | YM-1 yük modeli → EMS, pandapower |
 
 ## 1. PVGIS: güneş verisi
@@ -84,20 +84,21 @@ Gündüz PV fazlası bataryaya (BESS) aktarılıp akşam kullanılabilir (Senary
 
 ## 3. EPDK tarifesi
 
-- **Girilen değerler (`config/default.yaml → tariff`):** Mesken üç zamanlı, 4 Nisan 2026 dönemi, vergiler hariç.
+- **Kaynak:** EPDK "4 Nisan 2026 Tarihinden İtibaren Geçerli Vergiler Hariç Elektrik Tarifeleri" tablosu (resmî, elle indirildi).
+- **Satır:** Dağıtım sistemi kullanıcıları → AG tek terim → **Mesken (8 kWh/gün üstü)**, çok zamanlı.
+  Sitenin günlük tüketimi 8 kWh'nin çok üstünde olduğu için üst kademe. (Çok zamanlı enerji bedeli iki kademede de aynı.)
+- **Fiyat = aktif enerji bedeli + dağıtım bedeli.** Tablonun notuna göre vergiler hariç perakende fiyat bu ikisinin toplamıdır.
 
-| Dilim | Saat | TL/kWh |
-| --- | --- | --- |
-| Gündüz | 06–17 | 4,38 |
-| Puant | 17–22 | 6,17 |
-| Gece | 22–06 | 2,94 |
+| Dilim | Saat | Enerji (kr/kWh) | Dağıtım (kr/kWh) | Toplam (TL/kWh) |
+| --- | --- | --- | --- | --- |
+| Gündüz | 06–17 | 195,0640 | 242,4900 | 4,3755 |
+| Puant | 17–22 | 374,7551 | 242,4900 | 6,1725 |
+| Gece | 22–06 | 51,3656 | 242,4900 | 2,9386 |
 
-- **Kaynak durumu:** Değerler ikincil kaynaklardan alındı (akillitarife.com, piagrid.com).
-  EPDK'nın resmi tablo sayfası (epdk.gov.tr → Elektrik Faturalarına Esas Tarife Tabloları) dosyaları JavaScript ile yüklediği için
-  otomatik indirilemedi. **Yapılacak:** Tablo tarayıcıdan elle indirilip değerler doğrulanacak. Temmuz ve Ekim 2026 güncellemesi varsa
-  o kullanılacak.
-- **Kararlaştırılacak:** Site otoparkı bir apartman/site aboneliği olduğu için mesken tarifesi uygun görünüyor.
-  Ticarethane veya "genel aydınlatma" tarifesi istenirse yalnızca config değişir.
+- **Saatler:** Tablo notuna göre sürekli yaz saatine göre güncellenmiş sayaçlarda yıl boyunca 06–17 / 17–22 / 22–06 geçerli.
+  Türkiye 2016'dan beri sürekli UTC+3 kullandığı için bu dilimleri alıyoruz. (Güncellenmemiş eski sayaçlarda Mart–Ekim arası 07–18 / 18–23 / 23–07.)
+- İlk girilen ikincil kaynak değerleri (4,38 / 6,17 / 2,94) bu tabloyla örtüşüyor; config'e tablodaki hassas değerler yazıldı.
+- **Tarife grubu:** Mesken (site otoparkı, sitenin ortak aboneliği). Ticarethane istenirse yalnızca config değişir.
 - Vergiler (KDV, BTV) dahil edilmedi. Senaryolar arası karşılaştırmada oranlar değişmediği için sade tutuldu.
 - Gece fiyatı puantın yaklaşık yarısı (2,94 / 6,17 ≈ 0,48). Akıllı şarjın tasarrufu buradan gelecek.
 
@@ -138,7 +139,7 @@ istasyon 150 kW, site 180 kW, trafo 400 kVA).
 
 ## Ekibe ve hocaya sorular
 
-1. **Tarife grubu:** Mesken mi, ticarethane mi? (Öneri: mesken, site otoparkı.)
+1. ~~**Tarife grubu:**~~ Karar: mesken (AG tek terim, 8 kWh/gün üstü), EPDK 4 Nisan 2026 tablosundan doğrulandı.
 2. **Vergiler:** Maliyet KPI'ı vergi hariç mi verilsin? (Öneri: hariç.)
 3. **ACN-Data (YM-2):** Varış saatleri işyeri profiline göre. Enerji ihtiyacını ACN'den, saatleri sentetik dağılımdan almak uygun mu?
 4. ~~**Temsili gün:**~~ Karar: Haziran ve Aralık'ın hafta içi ortalama günleri.

@@ -62,9 +62,10 @@ grid:
   max_loading_percent: 100
 
 tariff:
-  # EPDK üç zamanlı mesken tarifesi, 4 Nisan 2026 dönemi, vergiler hariç (YM-1).
-  # Kaynak ve doğrulama durumu: docs/veri-kaynaklari.md
+  # EPDK tarife tablosu, 4 Nisan 2026, vergiler hariç (YM-1, resmî tablodan doğrulandı).
+  # AG tek terim, mesken (8 kWh/gün üstü), çok zamanlı: fiyat = enerji bedeli + dağıtım bedeli (242,4900 kr/kWh).
+  # Saatler: sürekli yaz saatine göre güncellenmiş sayaçlar için yıl boyunca geçerli dilimler.
   periods:
-    - {name: gunduz, start: 6,  end: 17, price_tl_per_kwh: 4.38}
-    - {name: puant,  start: 17, end: 22, price_tl_per_kwh: 6.17}
-    - {name: gece,   start: 22, end: 6,  price_tl_per_kwh: 2.94}
+    - {name: gunduz, start: 6,  end: 17, price_tl_per_kwh: 4.3755}   # 195,0640 + 242,4900 kr
+    - {name: puant,  start: 17, end: 22, price_tl_per_kwh: 6.1725}   # 374,7551 + 242,4900 kr
+    - {name: gece,   start: 22, end: 6,  price_tl_per_kwh: 2.9386}   #  51,3656 + 242,4900 kr
