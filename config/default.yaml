@@ -66,6 +66,21 @@ grid:
   voltage_min_pu: 0.95    # KPI: gerilim bunun altına düşüyor mu?
   voltage_max_pu: 1.05
   max_loading_percent: 100
+  # pandapower ağı (YM-4 + EM-2). TASLAK: değerler pandapower standart tiplerinden, EM-2 doğrulayacak.
+  # Topoloji: şebeke (OG) -> trafo -> AG ana pano (PCC) -> iki kablo: site binaları ve otopark.
+  network:
+    mv_kv: 20                          # OG gerilimi; Türkiye'de 34,5 kV da yaygın, EM-2 seçecek
+    ext_grid_vm_pu: 1.0                # OG tarafının sabit tutulan gerilimi
+    trafo_std_type: "0.4 MVA 20/0.4 kV"
+    base_load_power_factor: 0.95       # sabit yük endüktif; EV, PV ve BESS cos φ = 1 kabul edildi
+    feeders:                           # ana panodan çıkan kablolar
+      site:    {std_type: "NAYY 4x150 SE", length_km: 0.15}   # daireler, ortak alan, dükkânlar
+      station: {std_type: "NAYY 4x150 SE", length_km: 0.10}   # otopark: şarj istasyonu
+    placement:                         # hangi güç hangi kablonun ucunda (açık soru 4)
+      base_load: site
+      pv: site                         # çatı PV'si
+      ev: station
+      bess: station                    # batarya istasyonun yanında, akşam pikini oradan karşılar
 
 tariff:
   # EPDK tarife tablosu, 4 Nisan 2026, vergiler hariç (YM-1, resmî tablodan doğrulandı).
