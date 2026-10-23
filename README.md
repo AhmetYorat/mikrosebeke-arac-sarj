@@ -10,7 +10,7 @@ Proje iki katmandan oluşur:
 - **Python (bu repo):** 24 saatlik zaman serisi simülasyonu, enerji yönetimi (EMS), pandapower ile yük akışı, Streamlit dashboard.
 - **MATLAB/Simulink:** saniyeler mertebesinde dinamik analiz (frekans, gerilim). Çıktıları CSV olarak `simulink/outputs/` altına gelir ve dashboard'da gösterilir.
 
-Kapsam kararı: [docs/kapsam.md](docs/kapsam.md) · Çalışma düzeni ve Git kuralları: [docs/calisma-duzeni.md](docs/calisma-duzeni.md)
+Kapsam kararı: [docs/kapsam.md](docs/kapsam.md) · Arayüz sözleşmesi: [docs/arayuz-sozlesmesi.md](docs/arayuz-sozlesmesi.md) · Çalışma düzeni ve Git kuralları: [docs/calisma-duzeni.md](docs/calisma-duzeni.md)
 
 ## Kurulum
 
@@ -32,6 +32,9 @@ streamlit run dashboard/app.py
 ```
 
 `pytest` yeşil geçmeli, ikinci komut tarayıcıda dashboard'u açmalı.
+
+Simülasyon döngüsünü sahte modüller ve pandapower ağıyla denemek için: `python -m microgrid.sim` (sonuçlar `results/` altına yazılır).
+Tek seferlik yük akışı: `python -m microgrid.grid` (bkz. [docs/sebeke-modeli.md](docs/sebeke-modeli.md)).
 
 ## Klasör yapısı
 
