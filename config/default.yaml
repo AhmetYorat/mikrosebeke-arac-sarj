@@ -15,10 +15,6 @@ site:
   name: Bandirma          # PVGIS konumu (YM-1)
   latitude: 40.352
   longitude: 27.977
-  # Site büyüklüğü (EM-1). YM-1 yük profillerini bu yıllık enerjilere ölçekler.
-  apartments: 50
-  kwh_per_apartment_year: 2400       # daireler toplam 120 MWh/yıl
-  common_and_shops_kwh_year: 80000   # ortak alan + dükkânlar; araç şarjı hariç site toplamı 200 MWh/yıl
 
 station:
   type: site_otoparki     # site_otoparki | avm | otoyol

@@ -140,9 +140,14 @@ battery.apply(power_kw, dt_h) -> float    # uygulanan güç
   | `site_limit_kw` | 180 kW | `grid_kw`: tüm sitenin şebekeden alımı |
   | `grid.transformer_kva` | 400 kVA | fiziksel trafo; pandapower'da yüklenme % olarak görünür |
 
-  200 MWh/yıl ortalama ~23 kW eder; akşam pikinde sabit yük tahminen 45–60 kW (YM-1 profilleri netleştirecek).
-  Bu yüzden istasyon 150 kW'a çıkarsa site 180 kW'ı aşar. Yani akşam asıl
-  bağlayıcı sınır site sınırıdır; EMS istasyona `site_limit_kw − base_load_kw + pv_kw` kadar alan bırakabilir.
+  Hangi sınırın bağlayıcı olduğu mevsime göre değişir (YM-1'in BDEW profilleri, hafta içi ortalama gün, 17–22):
+
+  | | Sabit yük | Sabit yük + 150 kW istasyon | Bağlayıcı sınır |
+  | --- | --- | --- | --- |
+  | Haziran | ~24 kW | ~174 kW | istasyon (150 kW) |
+  | Aralık | ~34 kW (18:00'de 38 kW) | ~188 kW | site (180 kW) |
+
+  EMS istasyona her adımda `min(station_limit_kw, site_limit_kw − base_load_kw + pv_kw)` kadar alan bırakabilir.
 - Döngü sınırları zorlamaz, çünkü Senaryo 2 (kontrolsüz) aşımı göstermek için var. Aşım KPI'da raporlanır.
 
 ### YM-4 + EM-2: Şebeke modeli (`GridModel`)
@@ -222,4 +227,4 @@ Python tarafında okuma: `from microgrid.simulink_io import load_simulink_csv`.
 4. **Bara yerleşimi:** PV, BESS ve istasyon aynı barada mı, ayrı barada mı? Gerilim düşümü sonucunu doğrudan
    etkiler. (EM-1, EM-2)
 5. ~~**Sabit yük:** konut mu, toplam mı?~~ Karar (EM-1): `total_kw`. Site 50 daire (120 MWh/yıl) + ortak alan ve
-   dükkânlar (80 MWh/yıl) = 200 MWh/yıl, araç şarjı hariç.
+   dükkânlar (80 MWh/yıl) = 200 MWh/yıl, araç şarjı hariç. Ölçek config'te `loads:` altında (YM-1).
