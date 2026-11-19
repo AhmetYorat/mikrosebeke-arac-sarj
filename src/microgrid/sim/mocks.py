@@ -114,6 +114,8 @@ class SimpleBattery:
         self.soc_min, self.soc_max, self.soc = b["soc_min"], b["soc_max"], b["soc_initial"]
 
     def apply(self, power_kw: float, dt_h: float) -> float:
+        if self.capacity_kwh <= 0:   # batarya yok (duyarlılık analizinde 0 kWh)
+            return 0.0
         p = max(-self.power_kw, min(self.power_kw, power_kw))
         if p > 0:
             p = min(p, (self.soc_max - self.soc) * self.capacity_kwh / (dt_h * self.eff))
