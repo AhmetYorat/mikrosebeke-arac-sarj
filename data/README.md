@@ -16,6 +16,14 @@ Formatlar, birimler ve dikkat edilecekler: [docs/veri-kaynaklari.md](../docs/ver
 
 Sanal ortam açıkken (`source .venv/bin/activate`), repo kök klasöründen çalıştır.
 
+**Hepsi tek komutla** (PVGIS + yük profilleri; döngü için gereken her şey):
+
+```bash
+python -m microgrid.data
+```
+
+Ayrı ayrı çalıştırmak için:
+
 **PVGIS** (anahtar gerekmez; konum ve yıl `config/default.yaml` içinden okunur). İndirir, temizler ve
 `data/processed/` altına yazar:
 
