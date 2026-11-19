@@ -79,6 +79,20 @@ def build_inputs(cfg=None, index: pd.DatetimeIndex = None) -> pd.DataFrame:
     else:
         raise ValueError(f"inputs.mode '{opts['mode']}' tanınmıyor: average_day | actual")
 
+    return _frame(cfg, index, pv, load)
+
+
+def profile_inputs(cfg, index: pd.DatetimeIndex, pv_day: pd.Series, load_day: pd.Series) -> pd.DataFrame:
+    """Verilen 24 saatlik PV ve yük profillerinden girdi tablosu (ör. mevsim temsili günleri, data/seasons.py).
+
+    pv_day, load_day: indeks saat (0–23), değer kW. Gün döngüsel kabul edilir.
+    """
+    return _frame(
+        cfg, index, _interp_day(pv_day, PV_ANCHOR_MIN, index), _interp_day(load_day, LOAD_ANCHOR_MIN, index)
+    )
+
+
+def _frame(cfg, index, pv, load) -> pd.DataFrame:
     return pd.DataFrame(
         {
             "pv_kw": np.clip(pv, 0, None),

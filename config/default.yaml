@@ -58,6 +58,9 @@ inputs:
   # actual:      verideki gerçek gün (tarih PVGIS/yük verisinin yılında olmalı).
   mode: average_day
   weekdays_only: true     # ortalama günde yalnızca hafta içi günler
+  # Yıllık tahmin için temsili günler (data/seasons.py): 4 mevsim × 2 gün tipi × gökyüzü sınıfı.
+  # 3 → 24 temsili gün (bulutlu/orta/güneşli); tam yıl simülasyonuna göre yıllık maliyet farkı ~%3.
+  sky_classes: 3
 
 bess:
   capacity_kwh: 200
