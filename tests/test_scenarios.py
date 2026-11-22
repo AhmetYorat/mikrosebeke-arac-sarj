@@ -44,13 +44,13 @@ def test_s2_charges_in_evening(cfg):
 
 
 def test_s3_moves_charging_out_of_puant_without_new_peak(cfg):
-    """Geçici akıllı şarj: puanttaki araç şarjı azalır, aynı enerji verilir, yeni (22:00) tepe oluşmaz."""
+    """Kural tabanlı akıllı şarj (YM-3): puanttaki araç şarjı azalır, aynı enerji verilir, yeni (22:00) tepe oluşmaz."""
     from microgrid.kpi import compute
 
     index = time_index(cfg)
     inputs = mock_inputs(cfg, index)
     s2 = compute(simulate(cfg, SCENARIOS["S2 Kontrolsüz şarj"], inputs).steps, cfg)
-    s3_steps = simulate(cfg, SCENARIOS["S3 Akıllı şarj (geçici)"], inputs).steps
+    s3_steps = simulate(cfg, SCENARIOS["S3 Akıllı şarj"], inputs).steps
     s3 = compute(s3_steps, cfg)
     assert s3["arac_sarj_puant_payi"] < 0.1 < s2["arac_sarj_puant_payi"]
     assert abs(s3["arac_sarj_kwh"] - s2["arac_sarj_kwh"]) < 1e-6

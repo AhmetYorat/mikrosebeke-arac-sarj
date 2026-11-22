@@ -1,7 +1,7 @@
 """Senaryo tanımları ve tek gün çalıştırma (YM-4). Dashboard senaryo listesini buradan okur.
 
 Bir senaryo; istasyon, EMS ve batarya modüllerini nasıl kuracağını ve config'te neyi değiştireceğini söyler.
-YM-2/YM-3 modülleri geldikçe senaryo listesine tek satır eklenir; dashboard kendiliğinden gösterir:
+YM-2 istasyonu geldikçe `station=` tek satırla değişir (S3 artık YM-3'ün RuleBasedEMS'iyle çalışıyor); dashboard kendiliğinden gösterir:
 
     Scenario("S3 akıllı şarj", ems=lambda cfg: RuleBasedEMS(cfg), station=lambda cfg, start: ChargingStation(cfg, start))
 
@@ -16,8 +16,10 @@ from typing import Callable
 
 import pandas as pd
 
+from microgrid.ems.bess import BESS
+from microgrid.ems.rule_based import RuleBasedEMS
 from microgrid.sim.loop import SimResult, run, time_index
-from microgrid.sim.mocks import CheapHoursEMS, MockStation, SimpleBattery, UncontrolledEMS
+from microgrid.sim.mocks import MockStation, UncontrolledEMS
 
 
 @dataclass
@@ -26,9 +28,9 @@ class Scenario:
     description: str = ""
     ems: Callable = lambda cfg: UncontrolledEMS()
     station: Callable = lambda cfg, start: MockStation(cfg, start)
-    battery: Callable = lambda cfg: SimpleBattery(cfg)
+    battery: Callable = lambda cfg: BESS(cfg)
     config: dict = field(default_factory=dict)   # {"vehicles.count": 0} gibi noktalı yol -> değer
-    temporary: bool = False                      # gerçek modül gelene kadar sahte modülle çalışıyorsa True
+    temporary: bool = False                      # gerçek modül gelene kadar sahte modülle çalışıyorsa True (şu an: MockStation)
 
 
 def set_path(cfg: dict, path: str, value) -> None:
@@ -63,11 +65,11 @@ SCENARIOS: dict[str, Scenario] = {
             temporary=True,   # MockStation: CC-CV yok (YM-2 istasyonu bekleniyor)
         ),
         Scenario(
-            "S3 Akıllı şarj (geçici)",
-            "Gece tarifesine kaydırma + PV fazlası + sınırlara uyum. GEÇİCİ: YM-4'ün referans kuralı; "
-            "YM-3'ün kural tabanlı EMS'i gelince onunla değiştirilecek.",
-            ems=lambda cfg: CheapHoursEMS(cfg),
-            temporary=True,
+            "S3 Akıllı şarj",
+            "Kural tabanlı EMS (YM-3): şarj ayrılışa kadar en ucuz tarife adımlarına eşit yayılır, SOC < 0.30 olan araç "
+            "hemen taban SOC'ye çıkarılır, PV fazlası araçlara verilir, istasyon ve site sınırlarına uyulur. Batarya yok.",
+            ems=lambda cfg: RuleBasedEMS(cfg),
+            temporary=True,   # MockStation: CC-CV yok (YM-2 istasyonu bekleniyor)
         ),
     ]
 }
