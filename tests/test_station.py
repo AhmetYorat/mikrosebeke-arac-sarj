@@ -122,3 +122,89 @@ def test_runs_in_loop_and_respects_unit_power(cfg):
     unit_kw = {cid: u.power_kw for cid, u in station.units.items()}
     assert (log.power_kw <= log.charger_id.map(unit_kw) + 1e-9).all()
     assert (log.power_kw >= 0).all()
+
+
+SESSION_COLUMNS = [
+    "vehicle_id", "model", "battery_kwh", "arrival", "departure", "first_charger", "connected_at",
+    "soc_arrival", "soc_final", "target_soc", "energy_kwh", "reached_target", "waited_h",
+]
+
+
+def eleven_with_one_almost_full(cfg, cfg_over=None):
+    c = apply_overrides(cfg, cfg_over or {})
+    t = start_of(c) + pd.Timedelta(hours=6)
+    vehicles = [ev(0, t, soc=0.8 - 0.5 / 60)] + [ev(i, t) for i in range(1, 11)]   # ilki 0,5 kWh eksik
+    return make_station(c, vehicles), vehicles, t
+
+
+def step(s, ts, power=22.0, n=0):
+    reqs = s.requests(ctx_at(ts, n))
+    s.apply(ctx_at(ts, n), {r.charger_id: power for r in reqs})
+    return reqs
+
+
+def test_full_vehicle_frees_unit_for_queue(cfg):
+    s, vs, t = eleven_with_one_almost_full(cfg)
+    step(s, t)                                   # ilk araç bu adımda dolar
+    unit = vs[0].first_charger
+    step(s, t + pd.Timedelta(minutes=15), n=1)
+    assert vs[0].charger_id is None
+    assert s.units[unit].vehicle is vs[10]
+    assert s.queue == []
+
+
+def test_no_rotation_when_disabled(cfg):
+    s, vs, t = eleven_with_one_almost_full(cfg, {"station.rotate_when_full": False})
+    step(s, t)
+    step(s, t + pd.Timedelta(minutes=15), n=1)
+    assert vs[0].charger_id == vs[0].first_charger
+    assert s.queue == [vs[10]]
+
+
+def test_no_rotation_when_queue_empty(cfg):
+    t = start_of(cfg) + pd.Timedelta(hours=6)
+    a = ev(1, t, soc=0.8 - 0.5 / 60)
+    s = make_station(cfg, [a])
+    step(s, t)
+    step(s, t + pd.Timedelta(minutes=15), n=1)
+    assert a.charger_id == "AC1"
+
+
+def test_almost_full_counts_as_reached(cfg):
+    t = start_of(cfg) + pd.Timedelta(hours=6)
+    vehicles = [ev(0, t, soc=0.8 - 1e-9)] + [ev(i, t) for i in range(1, 11)]
+    s = make_station(cfg, vehicles)
+    s.requests(ctx_at(t))                         # ilk adımda 10 bağlanır, 1 sırada
+    s.requests(ctx_at(t + pd.Timedelta(minutes=15), 1))
+    assert vehicles[0].charger_id is None and vehicles[10].charger_id is not None
+
+
+def test_sessions_columns_and_rows(cfg):
+    result, station = day_run(cfg)
+    sess = station.sessions()
+    assert list(sess.columns) == SESSION_COLUMNS
+    assert len(sess) == cfg["vehicles"]["count"]
+    assert sess.energy_kwh.sum() == pytest.approx(result.steps.ev_kw.sum() * DT)
+
+
+def test_never_connected_vehicle_in_sessions(cfg):
+    # Nöbetleşe şarj açıkken 40 aracın hepsi sırayla hizmet alıyor; hiç bağlanamayanı görmek için kapatıyoruz.
+    c = apply_overrides(cfg, {"vehicles.count": 40, "station.rotate_when_full": False})
+    _, station = day_run(c)
+    sess = station.sessions()
+    never = sess[sess.first_charger.isna()]
+    assert len(sess) == 40 and len(never) > 0
+    assert (never.energy_kwh == 0).all() and (~never.reached_target).all()
+    assert list(never.waited_h) == pytest.approx(list((never.departure - never.arrival).dt.total_seconds() / 3600))
+
+
+def test_rotation_serves_more_vehicles(cfg):
+    c = apply_overrides(cfg, {"vehicles.count": 40})
+    off = apply_overrides(c, {"station.rotate_when_full": False})
+    served = lambda conf: day_run(conf)[1].sessions().connected_at.notna().sum()
+    assert served(c) > served(off)
+
+
+def test_default_day_serves_everyone(cfg):
+    _, station = day_run(cfg)
+    assert station.sessions().connected_at.notna().all()

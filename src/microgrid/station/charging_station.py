@@ -1,7 +1,7 @@
 """Şarj istasyonu (YM-2). Sözleşme: docs/arayuz-sozlesmesi.md, "YM-2: Şarj istasyonu".
 
 Döngü her adımda önce requests(ctx), sonra apply(ctx, ev_kw) çağırır:
-  requests: ayrılanları çıkarır, gelenleri sıraya ekler, boş ünitelere bağlar (önce AC, AC kalmadıysa DC),
+  requests: ayrılanları çıkarır, gelenleri sıraya ekler, sıra varsa dolu aracı üniteden alır (nöbetleşe), boş ünitelere bağlar (önce AC, AC kalmadıysa DC),
             bağlı araçların sınırlarını VehicleRequest olarak verir. CC-CV eğrisi max_charge_kw içindedir.
   apply:    EMS'in istediği güçleri ünite ve araç sınırlarına göre kırpar, SOC'leri günceller,
             gerçekte uygulanan gücü döndürür.
@@ -23,6 +23,7 @@ class ChargingStation:
         self.eff = st["charge_efficiency"]
         self.cv_threshold = st["cv_threshold_soc"]
         self.cv_min_fraction = st["cv_min_fraction"]
+        self.rotate_when_full = st["rotate_when_full"]
         self.units: dict[str, ChargingUnit] = {}
         for c in st["chargers"]:
             for i in range(c["count"]):
@@ -42,6 +43,14 @@ class ChargingStation:
                 u.disconnect()
         self.queue = [v for v in self.queue if v.departure > ts]
 
+    def _rotate(self) -> None:
+        """Nöbetleşe şarj: sırada bekleyen varsa hedefe ulaşmış araç üniteyi bırakır (otoparkta kalır, sıraya dönmez)."""
+        if not (self.rotate_when_full and self.queue):
+            return
+        for u in self._connected():
+            if u.vehicle.reached_target:
+                u.disconnect()
+
     def _handle_arrivals(self, ts: pd.Timestamp) -> None:
         for v in self.vehicles:
             if v.vehicle_id not in self._arrived and v.arrival <= ts:
@@ -60,6 +69,7 @@ class ChargingStation:
         ts = ctx.timestamp
         self._handle_departures(ts)
         self._handle_arrivals(ts)
+        self._rotate()
         self._assign(ts)
         out = []
         for u in self._connected():
@@ -87,3 +97,25 @@ class ChargingStation:
                 p = 0.0
             applied[u.charger_id] = p
         return applied
+
+    # --- çıktılar ---------------------------------------------------------------------------------------------
+    def sessions(self) -> pd.DataFrame:
+        """Araç başına bir satır: kim geldi, ne kadar bekledi, ne kadar enerji aldı, hedefe ulaştı mı.
+
+        Kullanıcı memnuniyeti KPI'ı (strategies.satisfaction) bu tablodan hesaplanır. energy_kwh şebeke tarafıdır
+        (şarj − V2G). Hiç bağlanamayan aracın first_charger'ı None, bekleme süresi tüm kalış süresidir.
+        """
+        rows = []
+        for v in self.vehicles:
+            waited_until = v.connected_at if v.ever_connected else v.departure
+            rows.append({
+                "vehicle_id": v.vehicle_id, "model": v.model_name, "battery_kwh": v.battery_kwh,
+                "arrival": v.arrival, "departure": v.departure,
+                "first_charger": v.first_charger, "connected_at": v.connected_at,
+                "soc_arrival": v.soc_arrival, "soc_final": v.soc, "target_soc": v.target_soc,
+                "energy_kwh": v.energy_in_kwh - v.energy_out_kwh, "reached_target": v.reached_target,
+                "waited_h": (waited_until - v.arrival).total_seconds() / 3600,
+            })
+        cols = ["vehicle_id", "model", "battery_kwh", "arrival", "departure", "first_charger", "connected_at",
+                "soc_arrival", "soc_final", "target_soc", "energy_kwh", "reached_target", "waited_h"]
+        return pd.DataFrame(rows, columns=cols)
