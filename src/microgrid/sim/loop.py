@@ -45,16 +45,23 @@ def run(
     ems: EMS,
     battery: Battery,
     grid: GridModel | None = None,
+    forecast: pd.DataFrame | None = None,
 ) -> SimResult:
-    """inputs: indeksi time_index(cfg), sütunları INPUT_COLUMNS olan tablo (YM-1)."""
+    """inputs: indeksi time_index(cfg), sütunları INPUT_COLUMNS olan tablo (YM-1).
+
+    forecast: EMS'in gün başında göreceği tahmin (aynı indeks ve sütunlar; YM-1 data.forecast.forecast_inputs).
+    Verilmezse EMS gerçek girdileri görür (kusursuz tahmin).
+    """
     missing = set(INPUT_COLUMNS) - set(inputs.columns)
     if missing:
         raise ValueError(f"inputs tablosunda eksik sütun: {sorted(missing)}")
+    if forecast is not None and not forecast.index.equals(inputs.index):
+        raise ValueError("forecast tablosunun indeksi inputs ile aynı olmalı")
 
     dt_h = cfg["simulation"]["step_minutes"] / 60
     station_limit_kw = cfg["station"]["power_limit_kw"]
     site_limit_kw = cfg["grid"]["site_import_limit_kw"]
-    ems.prepare(inputs[INPUT_COLUMNS])
+    ems.prepare((inputs if forecast is None else forecast)[INPUT_COLUMNS])
 
     rows, station_rows = [], []
     for step, (ts, row) in enumerate(inputs.iterrows()):

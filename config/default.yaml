@@ -98,3 +98,13 @@ tariff:
     - {name: gunduz, start: 6,  end: 17, price_tl_per_kwh: 4.3755}   # 195,0640 + 242,4900 kr
     - {name: puant,  start: 17, end: 22, price_tl_per_kwh: 6.1725}   # 374,7551 + 242,4900 kr
     - {name: gece,   start: 22, end: 6,  price_tl_per_kwh: 2.9386}   #  51,3656 + 242,4900 kr
+
+forecast:
+  # Ertesi gün tahmini (YM-1, data/forecast.py). Optimizasyonlu EMS (Senaryo 5) günü bununla planlar.
+  # perfect: gerçek değer (üst sınır) | persistence: dünün aynı saati
+  # climatology: son günlerin ortalaması | blend: persistence ve climatology karışımı
+  # Seçimler yıl boyu doğruluk karşılaştırmasıyla yapıldı (python -m microgrid.data.forecast).
+  pv_method: blend
+  load_method: climatology
+  window_days: 7                  # climatology: son kaç gün (yük için aynı gün tipinden)
+  blend_persistence_weight: 0.3   # blend: dünün payı
