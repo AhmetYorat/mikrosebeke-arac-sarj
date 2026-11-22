@@ -30,8 +30,8 @@ Rapor: 26 Kasım 2026. Hafta 3–7 görevleri bu hafta topluca tamamlandı ve te
 **Uyarı:** grafik ve aşağıdaki tablo **sahte girdiyle** (çan eğrisi PV, sentetik yük) üretildi; PVGIS'e bu ortamdan
 erişilemedi. Gerçek veriyle: `python -m microgrid.data` ardından `python scripts/ym2_hafta5_tepe_yuk.py`.
 
-Kontrolsüz şarjda (S2, 20 araç) istasyon tepe yükü ~196 kW (20:00): 150 kW istasyon sınırını aşıyor; o anda
-8 AC + 2 DC ünitenin hepsi şarj ediyor, bağlı araçların ortalama SOC'si 0,55. EM ekibi D2'yi bu değerlerle kurabilir.
+Kontrolsüz şarjda (S2, 20 araç) istasyon tepe yükü ~210 kW (19:45): 150 kW istasyon sınırını aşıyor; o anda
+8 AC + 2 DC ünitenin hepsi şarj ediyor, bağlı araçların ortalama SOC'si 0,53. EM ekibi D2'yi bu değerlerle kurabilir.
 
 Kullanıcı memnuniyeti (sahte girdi, Haziran):
 
@@ -39,9 +39,9 @@ Kullanıcı memnuniyeti (sahte girdi, Haziran):
 | --- | --- | --- | --- |
 | Hedefe ulaşma oranı | 1,00 | 0,55 | 0,50 |
 | Hizmet alamayan araç | 0 | 3 | 5 |
-| Ortalama bekleme (sa) | 0,4 | 5,2 | 5,7 |
+| Ortalama bekleme (sa) | 0,2 | 5,2 | 5,7 |
 | Araç şarjı (kWh) | 590 | 453 | 369 |
-| İstasyon tepe (kW) | 196 | 110 | 177 |
+| İstasyon tepe (kW) | 210 | 110 | 177 |
 
 ## Karşılaşılan sorunlar
 
@@ -51,6 +51,11 @@ Kullanıcı memnuniyeti (sahte girdi, Haziran):
   için hiçbir araç sabaha kadar dolmuyor, ünite boşalmıyor, sıradakiler hedefe yetişemiyor (tablo, orta sütun).
   İstasyon doğru davranıyor; EMS sırayı hesaba katmalı. İlgili test (`test_s3_…`) bu yüzden gerekçesiyle
   `xfail` işaretlendi; YM-3/YM-4 kararı bekleniyor.
+
+- **Kontrolsüz EMS'te verim hatası (düzeltildi):** `UncontrolledEMS` aracın batarya tarafı ihtiyacını (`need/dt`)
+  istiyordu; istasyon %5 verim kaybını düşünce her adım ihtiyacın %5'i kalıyor, araç hedefe asimptotik yaklaşıp
+  üniteyi ~1 saat fazladan tutuyordu. Artık tam güç isteniyor, istasyon hedefe kalan payla kırpıyor (YM-4'ün
+  dosyasında tek satır; sahte istasyonla sonuç değişmiyor).
 
 ## Gelecek hafta (Hafta 8)
 

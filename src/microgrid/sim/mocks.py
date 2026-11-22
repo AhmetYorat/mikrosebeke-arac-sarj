@@ -99,10 +99,9 @@ class UncontrolledEMS:
         pass
 
     def decide(self, inp: EmsInputs) -> Decision:
-        dt = inp.ctx.dt_h
-        return Decision(ev_kw={
-            v.charger_id: min(v.max_charge_kw, v.energy_needed_kwh / dt) for v in inp.vehicles
-        })
+        # Tam güç istenir; istasyon hedefe kalan payla (verim dahil) kendisi kırpar. need/dt istemek verim
+        # kaybı yüzünden her adım %5 eksik bırakıyordu ve araç üniteyi ~1 saat fazladan tutuyordu (YM-2).
+        return Decision(ev_kw={v.charger_id: v.max_charge_kw for v in inp.vehicles})
 
 
 class CheapHoursEMS:

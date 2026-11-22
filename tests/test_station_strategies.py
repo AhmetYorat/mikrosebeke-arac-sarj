@@ -78,3 +78,9 @@ def test_satisfaction_empty():
     k = satisfaction(sessions_table().iloc[0:0])
     assert k["arac_sayisi"] == 0 and k["hizmet_alamayan"] == 0
     assert math.isnan(k["hedefe_ulasma_orani"])
+
+
+def test_strategies_account_for_efficiency():
+    v = req("AC1", soc=0.8 - 1 / 60)          # 1 kWh batarya tarafı eksik
+    assert uncontrolled([v], DT, eff=0.95)["AC1"] == pytest.approx(1 / (DT * 0.95))
+    assert by_departure([v], 100.0, DT, eff=0.95)["AC1"] == pytest.approx(1 / (DT * 0.95))

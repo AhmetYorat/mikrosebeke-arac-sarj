@@ -4,7 +4,7 @@
 fonksiyonlar bu modülasyonun kurallarıdır; YM-3'ün EMS'i decide() içinde doğrudan çağırabilir:
 
     budget = min(inp.station_limit_kw, inp.site_limit_kw - inp.base_load_kw + inp.pv_kw)
-    Decision(ev_kw=by_departure(inp.vehicles, budget, inp.ctx.dt_h))
+    Decision(ev_kw=by_departure(inp.vehicles, budget, inp.ctx.dt_h, eff=cfg["station"]["charge_efficiency"]))
 
 satisfaction: SimResult.sessions'tan kullanıcı memnuniyeti KPI'ları (YM-1'in KPI tablosuna eklenecek).
 """
@@ -15,17 +15,21 @@ import pandas as pd
 from microgrid.interfaces import VehicleRequest
 
 
-def _want_kw(v: VehicleRequest, dt_h: float) -> float:
-    """Aracın bu adımda isteyebileceği en yüksek güç: ünite/CC-CV sınırı veya hedefe kalan enerji."""
-    return min(v.max_charge_kw, v.energy_needed_kwh / dt_h)
+def _want_kw(v: VehicleRequest, dt_h: float, eff: float) -> float:
+    """Aracın bu adımda isteyebileceği en yüksek güç: ünite/CC-CV sınırı veya hedefe kalan enerji (şebeke tarafı).
+
+    energy_needed_kwh batarya tarafıdır; şebekeden çekilmesi gereken bunun 1/η katıdır. Verimi hesaba katmamak
+    her adımda ihtiyacın %5'ini bırakır ve araç hedefe asimptotik yaklaşıp üniteyi gereksiz yere tutar.
+    """
+    return min(v.max_charge_kw, v.energy_needed_kwh / (dt_h * eff))
 
 
-def uncontrolled(vehicles: list[VehicleRequest], dt_h: float) -> dict[str, float]:
-    """Kontrolsüz şarj: her araç geldiği an çekebildiği en yüksek güçle."""
-    return {v.charger_id: _want_kw(v, dt_h) for v in vehicles}
+def uncontrolled(vehicles: list[VehicleRequest], dt_h: float, eff: float = 1.0) -> dict[str, float]:
+    """Kontrolsüz şarj: her araç geldiği an çekebildiği en yüksek güçle. eff: station.charge_efficiency."""
+    return {v.charger_id: _want_kw(v, dt_h, eff) for v in vehicles}
 
 
-def by_departure(vehicles: list[VehicleRequest], budget_kw: float, dt_h: float) -> dict[str, float]:
+def by_departure(vehicles: list[VehicleRequest], budget_kw: float, dt_h: float, eff: float = 1.0) -> dict[str, float]:
     """Güç bütçesini ayrılışı en yakın araçtan başlayarak dağıtır; eşit ayrılışta daha çok enerji isteyen önce.
 
     Toplam hiçbir zaman bütçeyi, araç başına güç hiçbir zaman aracın sınırını aşmaz. Bütçe yeterliyse sonuç
@@ -34,7 +38,7 @@ def by_departure(vehicles: list[VehicleRequest], budget_kw: float, dt_h: float) 
     out = {v.charger_id: 0.0 for v in vehicles}
     left = max(0.0, budget_kw)
     for v in sorted(vehicles, key=lambda v: (v.departure, -v.energy_needed_kwh)):
-        p = min(_want_kw(v, dt_h), left)
+        p = min(_want_kw(v, dt_h, eff), left)
         out[v.charger_id] = p
         left -= p
     return out

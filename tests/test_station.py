@@ -258,3 +258,11 @@ def test_plan_following_ems_reaches_targets(cfg):
     s = ChargingStation(c, index[0])
     run(c, mock_inputs(c, index), s, PlanEMS(s.planned_sessions()), SimpleBattery(c))
     assert satisfaction(s.sessions())["hedefe_ulasma_orani"] == 1
+
+
+def test_uncontrolled_finishes_without_long_tail(cfg):
+    """Verim kaybı yüzünden hedefe asimptotik yaklaşma olmamalı: araç başına en fazla 1 adım < 1 kW."""
+    result, _ = day_run(cfg)
+    log = result.station
+    tail = log[log.power_kw < 1.0].groupby("vehicle_id").size()
+    assert (tail <= 1).all(), tail[tail > 1].to_dict()

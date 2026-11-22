@@ -1,153 +1,73 @@
-# EV ŞARJ İSTASYONU SINIF TASARIMI VE UML SINIF DİYAGRAMI
-**Ders:** Akıllı Şebekeler Projesi  
-**Rol:** YM-2 (Şarj İstasyonu Modeli)  
-**Aşama:** Hafta 2 (Tasarım: Şema, Boyutlar ve Modül Arayüzleri)  
+# Şarj istasyonu sınıf tasarımı (YM-2)
 
----
-
-## 🖼️ Görsel Şema Çıktıları
-- **Mermaid Şema Resmi (PNG):** [docs/mermaid-diagram-2026-10-16-140115.png](file:///Users/sude/Desktop/ak%C4%B1ll%C4%B1%20sebekeler%20proje/docs/mermaid-diagram-2026-10-16-140115.png) *(Mermaid Live Editor'dan alınan görsel şema)*
-- **Alternatif UML Kutu Şeması (PNG):** [docs/sinif_diyagrami.png](file:///Users/sude/Desktop/ak%C4%B1ll%C4%B1%20sebekeler%20proje/docs/sinif_diyagrami.png) *(Klasik mühendislik UML diyagramı)*
-- **İnteraktif Web Önizleme & SVG İndirici:** [docs/diagram_preview.html](file:///Users/sude/Desktop/ak%C4%B1ll%C4%B1%20sebekeler%20proje/docs/diagram_preview.html) *(Tarayıcınızda açıp tek tıkla vektörel SVG olarak indirebilirsiniz)*
-
----
-
-## 🏛️ 1. Mimari Tasarım Prensipleri
-
-Nesne yönelimli tasarımımız 3 temel katmandan ve sınıftan oluşur:
-
-1. **`ElectricVehicle` (Araç Modeli):**
-   - Tek bir elektrikli aracın fiziksel batarya özelliklerini, anlık şarj durumunu ($SOC$), şarj gereksinimini ve Li-ion CC-CV eğrisine göre maksimum çekebileceği gücü yönetir.
-   - V2G (şebekeye enerji geri besleme) yeteneğini ve güvenlik eşiğini barındırır.
-2. **`ChargingUnit` (Soket / Ünite Modeli):**
-   - İstasyondaki her bir fiziksel şarj portunu (AC Tip-2 veya DC CCS2) temsil eder.
-   - Soketin maksimum/minimum güç sınırlarını, anlık güç atamasını ve soket durumunu (`AVAILABLE`, `CHARGING`, `IDLE`, `DISCHARGING`) yönetir.
-3. **`ChargingStation` (İstasyon Yönetim Modeli):**
-   - Tüm şarj soketlerini bünyesinde toplar.
-   - Yeni gelen araçları uygun boş soketlere bağlar (`plug_in_vehicle`), süresi dolan araçları ayırır (`auto_handle_departures`).
-   - EMS'e bağlı araçların listesini döner (`bagli_araclar`), EMS güç atamalarını dağıtır (`apply_power_allocations`).
-   - pandapower için anlık toplam istasyon yükünü (`get_total_power_kw`) ve trafo aşım durumunu hesaplar.
-
----
-
-## 📊 2. UML Sınıf Diyagramı (Class Diagram)
+Durum: **Hafta 9 son hâli.** Hafta 2 tasarımı (`docs/raporlar/sinif-diyagrami.png`) aynı dört sınıfla başladı;
+Hafta 3–8'de sözleşmedeki `requests/apply` arayüzüne göre yeniden düzenlendi. Kod: `src/microgrid/station/`.
 
 ```mermaid
 classDiagram
-    direction TB
-
-    class UnitStatus {
-        <<enumeration>>
-        AVAILABLE
-        OCCUPIED_CHARGING
-        OCCUPIED_IDLE
-        OCCUPIED_DISCHARGING
-    }
-
-    class ElectricVehicle {
-        +str vehicle_id
-        +str model_name
-        +float battery_capacity_kwh
-        +float initial_soc
-        +float current_soc
-        +float target_soc
-        +float arrival_time
-        +float departure_time
-        +float max_ac_power_kw
-        +float max_dc_power_kw
-        +bool v2g_capable
-        +bool is_connected
-        +str connected_unit_id
-        +float total_energy_charged_kwh
-        +float total_energy_discharged_kwh
-        +energy_needed_kwh : float
-        +remaining_parking_duration_hours : float
-        +is_fully_charged() bool
-        +get_max_charging_power(unit_type: str, unit_max_kw: float) float
-        +charge(power_kw: float, dt_hours: float, efficiency: float) float
-        +discharge(power_kw: float, dt_hours: float, efficiency: float) float
-        +to_dict() dict
-    }
-
-    class ChargingUnit {
-        +str unit_id
-        +str unit_type
-        +float max_power_kw
-        +float min_power_kw
-        +float current_power_kw
-        +float total_energy_delivered_kwh
-        +UnitStatus status
-        +ElectricVehicle connected_vehicle
-        +is_occupied : bool
-        +connect_vehicle(vehicle: ElectricVehicle) bool
-        +disconnect_vehicle() ElectricVehicle
-        +get_max_deliverable_power() float
-        +set_power(power_kw: float) float
-        +step(dt_hours: float) float
-        +to_dict() dict
-    }
-
+    direction LR
     class ChargingStation {
-        +str station_id
-        +str name
-        +float transformer_limit_kw
-        +Dict~str, ChargingUnit~ units
-        +float total_energy_delivered_kwh
-        +int completed_sessions_count
-        +list overload_history
-        +total_capacity_kw : float
-        +active_connected_vehicles_count : int
-        +get_unit(unit_id: str) ChargingUnit
-        +get_available_units(unit_type: str) List~ChargingUnit~
-        +plug_in_vehicle(vehicle: ElectricVehicle, preferred_type: str) str
-        +unplug_vehicle(unit_id: str) ElectricVehicle
-        +auto_handle_departures(current_time: float) List~ElectricVehicle~
-        +bagli_araclar(current_time: float) List~dict~
-        +apply_power_allocations(allocations: Dict) void
-        +get_total_power_kw() float
-        +is_transformer_overloaded() bool
-        +step(dt_hours: float, current_time: float) dict
-        +get_dashboard_state() dict
+        +units: dict~str, ChargingUnit~
+        +vehicles: list~ElectricVehicle~
+        +queue: list~ElectricVehicle~
+        +n_chargers: int
+        +requests(ctx) list~VehicleRequest~
+        +apply(ctx, ev_kw) dict~str, float~
+        +sessions() DataFrame
+        +planned_sessions() DataFrame
     }
-
+    class ChargingUnit {
+        +charger_id: str
+        +kind: AC | DC
+        +power_kw: float
+        +vehicle: ElectricVehicle
+        +connect(vehicle, ts)
+        +disconnect() ElectricVehicle
+        +max_charge_kw(threshold, min_fraction) float
+        +max_discharge_kw(ts, dt_h, min_soc, eff) float
+    }
+    class ElectricVehicle {
+        +vehicle_id, model_name: str
+        +battery_kwh, soc, soc_arrival, target_soc: float
+        +arrival, departure: Timestamp
+        +max_ac_kw, max_dc_kw: float
+        +v2g_capable: bool
+        +energy_needed_kwh: float
+        +reached_target: bool
+        +max_charge_kw(kind, unit_kw, threshold, min_fraction) float
+        +max_discharge_kw(ts, dt_h, unit_kw, p_charge_kw, min_soc, eff) float
+        +charge(p_kw, dt_h, eff)
+        +discharge(p_kw, dt_h, eff)
+    }
     class DemandModel {
-        +int random_seed
-        +generate_fleet(total_vehicles: int, profile: str) List~ElectricVehicle~
-        -_sample_vehicle_spec() dict
+        +generate_fleet(start) list~ElectricVehicle~
     }
-
-    ChargingStation "1" *-- "1..*" ChargingUnit : barındırır
-    ChargingUnit "1" o-- "0..1" ElectricVehicle : şarj eder
-    ChargingUnit ..> UnitStatus : durum takibi
-    DemandModel ..> ElectricVehicle : üretir
+    ChargingStation "1" *-- "10" ChargingUnit
+    ChargingStation "1" o-- "*" ElectricVehicle
+    ChargingUnit "1" --> "0..1" ElectricVehicle : bağlı araç
+    ChargingStation ..> DemandModel : filo üretir
 ```
 
----
+## Sorumluluklar
 
-## ⚙️ 3. Sınıf Alanları ve Metot Tanımları
+| Sınıf / modül | Ne yapar |
+| --- | --- |
+| `ElectricVehicle` (`vehicle.py`) | Aracın kimliği, donanımı (batarya, OBC, V2G) ve durumu (SOC, bağlı olduğu ünite, aldığı/verdiği enerji). Şarj fiziği: `cc_cv_limit`, V2G garantileri. |
+| `ChargingUnit` (`charging_unit.py`) | Tek AC/DC ünite; bağlı aracın o üniteden çekebileceği/verebileceği sınırı hesaplar. |
+| `ChargingStation` (`charging_station.py`) | Döngünün gördüğü tek nesne. Her adım: ayrılanlar → gelenler sıraya → nöbetleşe şarj → boş üniteye atama (önce AC) → `VehicleRequest` listesi. `apply` güçleri kırpar ve uygular. |
+| `DemandModel` (`demand_model.py`) | Config'teki dağılımlar ve araç kataloğundan bir günlük filo. |
+| `strategies.py` | `uncontrolled`, `by_departure` (EMS için güç dağıtım kuralları), `satisfaction` (kullanıcı memnuniyeti KPI'ı). |
+| `analysis.py` | Araç sayısı–tepe yük analizi, istasyonun kritik anı. |
 
-### `ElectricVehicle`
-- **`battery_capacity_kwh`**: Nominal batarya kapasitesi (kWh).
-- **`current_soc`**: Anlık şarj durumu ($0.0 \le \text{SOC} \le 1.0$).
-- **`target_soc`**: Kullanıcının ayrılırken beklediği hedef şarj ($0.85 - 1.00$).
-- **`get_max_charging_power(unit_type, unit_max_kw)`**: 
-  - Araç dahili OBC limiti (`max_ac_power_kw`), soket limiti (`unit_max_kw`) ve Li-ion CC-CV eğrisinin ortak kesişimindeki anlık çekilebilir tavan gücü hesaplar.
-- **`charge(power_kw, dt_hours, efficiency)`**:
-  - Bataryaya $\Delta E = P \times \Delta t \times \eta$ kadar net enerji aktarır ve SOC'yi günceller.
+## Hafta 2 tasarımından farklar
 
-### `ChargingUnit`
-- **`unit_id`**: Benzersiz soket kodu (`AC-01` ... `AC-08`, `DC-01`, `DC-02`).
-- **`unit_type`**: `AC` (22 kW Tip-2) veya `DC` (50 kW CCS2).
-- **`set_power(power_kw)`**:
-  - EMS'ten gelen komutu soketin ve bağlı aracın fiziksel sınırlarıyla sınırlar. Negatif güç gelirse ve araç V2G yetenekliyse deşarj moduna geçer.
-- **`step(dt_hours)`**:
-  - Zaman adımını ilerleterek bağlı araca şarj uygular ve harcanan enerjiyi toplar.
-
-### `ChargingStation`
-- **`transformer_limit_kw`**: Şebeke / trafo bağlantı limiti (180 kW).
-- **`bagli_araclar(current_time)`**:
-  - EMS optimizasyon döngüsünün girdi alabilmesi için bağlı araçların aciliyet, SOC ve enerji gereksinimlerini liste olarak üretir.
-- **`apply_power_allocations(allocations)`**:
-  - EMS karar sözlüğünü soketlere paylaştırır.
-- **`get_total_power_kw()`**:
-  - Tüm soketlerin çektiği gücü toplayarak pandapower için anlık yük çıktısı verir.
+| Hafta 2 | Son hâl | Neden |
+| --- | --- | --- |
+| `bagli_araclar(saat)` → sözlük listesi | `requests(ctx)` → `VehicleRequest` | Ekip sözleşmesi (`docs/arayuz-sozlesmesi.md`) |
+| `apply_power_allocations(dict)` → `None` | `apply(ctx, ev_kw)` → uygulanan güç | Döngü gerçekte uygulanan gücü kaydeder |
+| Saatler ondalık (17.5) | `pd.Timestamp` (Europe/Istanbul) | Gece yarısını geçen kalışlar |
+| `AC-01` | `AC1` | Sözleşmedeki biçim |
+| Parametreler kodda | `config/default.yaml` | Ortak kural |
+| `get_total_power_kw`, `get_dashboard_state` | `SimResult.steps.ev_kw`, `SimResult.station` | Toplam güç ve ünite görünümünü döngü kaydediyor |
+| `UnitStatus`, ünite taban gücü (1,4 kW) | kaldırıldı | EMS'i karmaşıklaştırıyordu; sonuçlara etkisi yok |
+| — | Sıra, nöbetleşe şarj, `sessions()`, `planned_sessions()` | 20 araç / 10 ünite, memnuniyet KPI'ı, MILP |
