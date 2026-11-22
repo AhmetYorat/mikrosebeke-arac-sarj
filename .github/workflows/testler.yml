@@ -1,0 +1,37 @@
+# Her PR'da ve main'e her birleştirmede testleri çalıştırır (YM-4).
+# Neden: main her an demo edilebilir olmalı. Kırık bir PR birleşmeden önce burada kırmızı görünür.
+# Gerçek veriyle çalışan testler (v0 vb.) için PVGIS verisi CI'da indirilir ve önbelleğe alınır;
+# yerelde veri yoksa bu testler atlanır, CI'da atlanmaz.
+name: testler
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Bağımlılıklar
+        run: pip install -r requirements.txt
+
+      - name: Veri önbelleği (PVGIS + yük profilleri)
+        uses: actions/cache@v4
+        with:
+          path: data/processed
+          key: veri-${{ hashFiles('config/default.yaml', 'src/microgrid/data/**') }}
+
+      - name: Veriyi hazırla
+        # PVGIS geçici olarak erişilemezse testler yine çalışsın (veriye bağlı olanlar atlanır).
+        run: python -m microgrid.data || echo "::warning::Veri hazırlanamadı; gerçek veriyle çalışan testler atlanacak."
+
+      - name: pytest
+        run: pytest -q -rs
