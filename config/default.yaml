@@ -62,7 +62,7 @@ inputs:
 bess:
   capacity_kwh: 200
   power_kw: 100
-  efficiency: 0.95
+  efficiency: 0.95        # her yön için (şarj ve deşarj ayrı ayrı); gidiş-dönüş verimi 0.95² ≈ 0.90 (ems/bess.py)
   soc_min: 0.1
   soc_max: 0.9
   soc_initial: 0.5
