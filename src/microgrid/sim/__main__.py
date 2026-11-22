@@ -6,7 +6,8 @@ v0 (Hafta 4): PV, sabit yük ve tarife gerçek veriden gelir (YM-1, build_inputs
 Seçenekler:
     --gun haziran | aralik | ikisi   temsili gün (ekip kararı: Haziran ve Aralık hafta içi ortalaması).
                                      Verilmezse config'teki simulation.start kullanılır.
-    --mock                           girdiler için de sahte veri (data/processed/ dosyaları yoksa)
+    --mock                           girdiler için de sahte veri
+Veri dosyaları (data/processed/) yoksa döngü uyarı verip sahte girdilerle çalışır (YM-4, sim/setup.py).
 
 Önce veri hazırlanmalı (bir kez):  python -m microgrid.data
 Sonuçlar results/ altına yazılır (repoya girmez).
@@ -14,13 +15,10 @@ Sonuçlar results/ altına yazılır (repoya girmez).
 import argparse
 
 from microgrid.config import REPO_ROOT, load_config
-from microgrid.data.inputs import build_inputs
 from microgrid.grid import PandapowerGrid
 from microgrid.sim.loop import run, time_index
 from microgrid.sim.mocks import MockStation, SimpleBattery, UncontrolledEMS, mock_inputs
-
-# Temsili günler: öğlen başlar, ertesi gün öğlen biter (çarşamba -> perşembe, hafta içi)
-TEMSILI_GUNLER = {"haziran": "2023-06-21 12:00", "aralik": "2023-12-20 12:00"}
+from microgrid.sim.setup import SAHTE, TEMSILI_GUNLER, load_inputs, with_start
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument("--gun", choices=[*TEMSILI_GUNLER, "ikisi"])
@@ -39,14 +37,18 @@ out.mkdir(exist_ok=True)
 grid = PandapowerGrid(load_config())
 
 for name, start in days.items():
-    cfg = load_config()
-    if start:
-        cfg["simulation"]["start"] = start
+    cfg = with_start(load_config(), start)
     index = time_index(cfg)
-    inputs = mock_inputs(cfg, index) if args.mock else build_inputs(cfg, index)
+    if args.mock:
+        inputs, source = mock_inputs(cfg, index), SAHTE
+    else:
+        inputs, source = load_inputs(cfg, index)
+        if source == SAHTE:
+            print("UYARI: data/processed/ dosyaları yok, sahte girdilerle çalışılıyor. "
+                  "Gerçek veri için bir kez: python -m microgrid.data")
     result = run(cfg, inputs, MockStation(cfg, index[0]), UncontrolledEMS(), SimpleBattery(cfg), grid=grid)
 
-    prefix = f"{'mock' if args.mock else 'v0'}_{name}"
+    prefix = f"{'mock' if source == SAHTE else 'v0'}_{name}"
     result.steps.to_csv(out / f"{prefix}_steps.csv")
     result.station.to_csv(out / f"{prefix}_station.csv", index=False)
 
