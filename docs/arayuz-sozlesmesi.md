@@ -121,6 +121,21 @@ apply(ctx, ev_kw: dict[charger_id, kW]) -> dict[charger_id, kW]
   Böylece EMS'in şarj fiziğini bilmesi gerekmez.
 - `charger_id` biçimi: `AC1`…`AC8`, `DC1`, `DC2`.
 
+**Uygulama (Hafta 3–4, `microgrid.station.ChargingStation(cfg, start, seed=0)`).** Parametreler `config/default.yaml`
+`station:` ve `vehicles:` altında.
+
+- **Güçler şebeke tarafıdır.** Bataryaya giren enerji `güç × dt × station.charge_efficiency` (0,95). `energy_needed_kwh`
+  batarya tarafıdır; `apply` kalan payı verimle birlikte hesaplar, EMS'in bunu ayrıca düşünmesi gerekmez.
+- **Araçlar:** geliş/ayrılış/SOC dağılımları `vehicles:` altından, araç modeli `vehicles.fleet` kataloğundan
+  (batarya, OBC sınırı, V2G desteği). 11 kW OBC'li araç 22 kW AC ünitede 11 kW çeker; bu `max_charge_kw`'ye yansır.
+- **Atama:** gelen araç sıraya (FIFO) girer, boş üniteye bağlanır: önce AC, AC kalmadıysa DC.
+- **Nöbetleşe şarj** (`station.rotate_when_full`, varsayılan açık): sırada bekleyen varsa hedef SOC'ye ulaşmış araç
+  üniteyi bırakır (otoparkta kalır). 20 araç / 10 ünitede bu olmadan yarım filo sabaha kadar bekler.
+  EMS'ler için sonuç: şarjı bütün geceye eşit yaymak üniteleri sabaha kadar kilitler; sıradaki araçlar hedefe yetişemez.
+- **Oturum tablosu:** `SimResult.sessions` (araç başına bir satır): `vehicle_id, model, battery_kwh, arrival, departure,
+  first_charger, connected_at, soc_arrival, soc_final, target_soc, energy_kwh, reached_target, waited_h`.
+  Kullanıcı memnuniyeti KPI'ı buradan hesaplanır. Sahte istasyonla çalışan senaryolarda boş tablodur.
+
 ### YM-3: EMS (`EMS`) ve batarya (`Battery`)
 
 ```python

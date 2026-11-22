@@ -1,9 +1,10 @@
 """Senaryo tanımları ve tek gün çalıştırma (YM-4). Dashboard senaryo listesini buradan okur.
 
 Bir senaryo; istasyon, EMS ve batarya modüllerini nasıl kuracağını ve config'te neyi değiştireceğini söyler.
-YM-2/YM-3 modülleri geldikçe senaryo listesine tek satır eklenir; dashboard kendiliğinden gösterir:
+Varsayılan istasyon YM-2'nin gerçek istasyonudur (ChargingStation: CC-CV, araç kataloğu, sıra ve nöbetleşe şarj).
+YM-3 modülleri geldikçe senaryo listesine tek satır eklenir; dashboard kendiliğinden gösterir:
 
-    Scenario("S3 akıllı şarj", ems=lambda cfg: RuleBasedEMS(cfg), station=lambda cfg, start: ChargingStation(cfg, start))
+    Scenario("S3 akıllı şarj", ems=lambda cfg: RuleBasedEMS(cfg))
 
 Not: YM-1'in duyarlılık analizi (ym1/hafta9-duyarlilik, analysis.py) aynı alanlara sahip bir Scenario kullanıyor.
 O branch birleşince ikisi tek sınıfta toplanmalı (analysis.py bunu buradan import etsin).
@@ -17,7 +18,8 @@ from typing import Callable
 import pandas as pd
 
 from microgrid.sim.loop import SimResult, run, time_index
-from microgrid.sim.mocks import CheapHoursEMS, MockStation, SimpleBattery, UncontrolledEMS
+from microgrid.sim.mocks import CheapHoursEMS, SimpleBattery, UncontrolledEMS
+from microgrid.station import ChargingStation
 
 
 @dataclass
@@ -25,7 +27,7 @@ class Scenario:
     name: str
     description: str = ""
     ems: Callable = lambda cfg: UncontrolledEMS()
-    station: Callable = lambda cfg, start: MockStation(cfg, start)
+    station: Callable = lambda cfg, start: ChargingStation(cfg, start)
     battery: Callable = lambda cfg: SimpleBattery(cfg)
     config: dict = field(default_factory=dict)   # {"vehicles.count": 0} gibi noktalı yol -> değer
     temporary: bool = False                      # gerçek modül gelene kadar sahte modülle çalışıyorsa True
@@ -60,7 +62,6 @@ SCENARIOS: dict[str, Scenario] = {
         Scenario(
             "S2 Kontrolsüz şarj",
             "Araç geldiği an tam güçle şarj olur, batarya kullanılmaz. Sorunun görüldüğü senaryo.",
-            temporary=True,   # MockStation: CC-CV yok (YM-2 istasyonu bekleniyor)
         ),
         Scenario(
             "S3 Akıllı şarj (geçici)",
@@ -79,4 +80,8 @@ def simulate(cfg: dict, scenario: Scenario, inputs: pd.DataFrame, grid=None) -> 
     index = time_index(c)
     if not inputs.index.equals(index):
         raise ValueError("inputs indeksi senaryonun zaman ekseniyle aynı olmalı (time_index(cfg))")
-    return run(c, inputs, scenario.station(c, index[0]), scenario.ems(c), scenario.battery(c), grid)
+    station = scenario.station(c, index[0])
+    result = run(c, inputs, station, scenario.ems(c), scenario.battery(c), grid)
+    if hasattr(station, "sessions"):
+        result.sessions = station.sessions()
+    return result

@@ -40,7 +40,7 @@ python -m microgrid.data          # PVGIS indirir, yük profillerini üretir (da
 python -m microgrid.sim --gun ikisi   # Haziran ve Aralık temsili günleri; --mock: sahte girdiler
 ```
 
-PV, sabit yük ve tarife gerçek veriden gelir; istasyon ve EMS henüz sahte (kontrolsüz şarj).
+PV, sabit yük ve tarife gerçek veriden gelir; istasyon gerçek modeldir (YM-2: araç kataloğu, CC-CV, sıra ve nöbetleşe şarj); EMS henüz sahte (kontrolsüz şarj).
 Tek seferlik yük akışı: `python -m microgrid.grid` (bkz. [docs/sebeke-modeli.md](docs/sebeke-modeli.md)).
 
 ## Klasör yapısı

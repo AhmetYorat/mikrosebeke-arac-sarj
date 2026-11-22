@@ -1,7 +1,7 @@
 """Simülasyon döngüsü (YM-4). Modülleri her adımda sözleşmedeki sırayla çağırır."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
@@ -29,6 +29,9 @@ STATION_COLUMNS = ["timestamp", "charger_id", "vehicle_id", "soc", "power_kw"]
 class SimResult:
     steps: pd.DataFrame      # adım başına bir satır, indeks timestamp, sütunlar STEP_COLUMNS
     station: pd.DataFrame    # adım × bağlı araç başına bir satır, sütunlar STATION_COLUMNS
+    # Araç başına bir satır (YM-2, ChargingStation.sessions): bekleme, alınan enerji, hedefe ulaştı mı.
+    # Kullanıcı memnuniyeti KPI'ı buradan (station.strategies.satisfaction). Sahte istasyonda boş.
+    sessions: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def time_index(cfg: dict) -> pd.DatetimeIndex:
