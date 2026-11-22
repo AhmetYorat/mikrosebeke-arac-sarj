@@ -1,110 +1,57 @@
+"""Araç talep modeli (YM-2): config'teki dağılımlardan bir günlük araç filosu üretir.
+
+Site otoparkı: araçlar akşam gelir, ertesi sabah ayrılır (docs/kapsam.md). Geliş/ayrılış saatleri ve SOC'ler
+`vehicles:` altındaki dağılımlardan, araç modeli (batarya, OBC sınırı, V2G) `vehicles.fleet` kataloğundan gelir.
 """
-Araç Talep Modeli (DemandModel)
-Yazılım Üyesi 2 (YM-2) - Hafta 2 Görevi
-"""
-import random
-from typing import List
-from .vehicle import ElectricVehicle
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from microgrid.station.vehicle import ElectricVehicle
 
 
-# Türkiye ve Avrupa pazarındaki yaygın elektrikli araç teknik özellikleri
-VEHICLE_CATALOG = [
-    {
-        "model_name": "Renault Zoe E-Tech",
-        "battery_capacity_kwh": 52.0,
-        "max_ac_power_kw": 22.0,
-        "max_dc_power_kw": 50.0,
-        "v2g_capable": False,
-        "weight": 0.25,
-    },
-    {
-        "model_name": "Tesla Model 3 SR+",
-        "battery_capacity_kwh": 60.0,
-        "max_ac_power_kw": 11.0,
-        "max_dc_power_kw": 170.0,
-        "v2g_capable": True,
-        "weight": 0.30,
-    },
-    {
-        "model_name": "Togg T10X Uzun Menzil",
-        "battery_capacity_kwh": 88.5,
-        "max_ac_power_kw": 22.0,
-        "max_dc_power_kw": 150.0,
-        "v2g_capable": False,
-        "weight": 0.25,
-    },
-    {
-        "model_name": "Hyundai Ioniq 5",
-        "battery_capacity_kwh": 77.4,
-        "max_ac_power_kw": 11.0,
-        "max_dc_power_kw": 220.0,
-        "v2g_capable": True,
-        "weight": 0.10,
-    },
-    {
-        "model_name": "Peugeot e-208",
-        "battery_capacity_kwh": 50.0,
-        "max_ac_power_kw": 11.0,
-        "max_dc_power_kw": 100.0,
-        "v2g_capable": False,
-        "weight": 0.10,
-    },
-]
+def _catalog(veh: dict) -> list[dict]:
+    """Katalog yoksa tek tip araç: battery_kwh, AC 22 / DC 50 kW, V2G yok."""
+    return veh.get("fleet") or [{
+        "model": "Standart", "battery_kwh": veh["battery_kwh"], "max_ac_kw": 22, "max_dc_kw": 50,
+        "v2g": False, "share": 1.0,
+    }]
 
 
 class DemandModel:
-    """
-    Hafta 2 Araç Talep Modeli (Site Otoparkı - Konut / Rezidans Profili):
-    Olasılık dağılımlarına göre 24 saatlik sentetik araç akışı üretir.
-    
-    Site Sakinleri Davranış Dağılımları:
-    - Akşam Eve Dönüş Piki (%65): Normal(18.0, 1.6h) - Gece boyu uzun bağlı kalma
-    - Gündüz / Evden Çalışan / Misafir (%35): Normal(11.5, 2.5h)
-    - Geliş SOC: Uniform(0.18, 0.45)
-    - Hedef SOC: Uniform(0.85, 1.00)
-    """
-    def __init__(self, random_seed: int = 42):
-        self.random_seed = random_seed
-        self.rng = random.Random(random_seed)
+    def __init__(self, cfg: dict, seed: int = 0):
+        self.cfg = cfg
+        self.rng = np.random.default_rng(seed)
 
-    def _sample_spec(self) -> dict:
-        weights = [v["weight"] for v in VEHICLE_CATALOG]
-        return self.rng.choices(VEHICLE_CATALOG, weights=weights, k=1)[0]
+    def generate_fleet(self, start: pd.Timestamp) -> list[ElectricVehicle]:
+        """Simülasyon başlangıcına (öğlen) göre araçlar, gelişe göre sıralı.
 
-    def generate_fleet(self, total_vehicles: int = 20) -> List[ElectricVehicle]:
-        """24 saatlik simülasyon için araç listesi üretir."""
+        Kırpma kuralları: geliş [start, start + 12 sa) içinde; ayrılış en erken gelişten 1 saat sonra,
+        en geç simülasyon bitişinde. Böylece hiçbir araç negatif süre kalmaz ya da pencerenin dışına taşmaz.
+        """
+        veh = self.cfg["vehicles"]
+        catalog = _catalog(veh)
+        shares = np.array([m["share"] for m in catalog], dtype=float)
+        shares /= shares.sum()
+        day = start.normalize()
+        end = start + pd.Timedelta(hours=self.cfg["simulation"]["horizon_hours"])
+        h = lambda x: pd.to_timedelta(x, unit="h")
+
         fleet = []
-        for i in range(1, total_vehicles + 1):
-            spec = self._sample_spec()
-            vid = f"EV-{i:03d}"
-            
-            # Varış zamanı dağılımı: %65 akşam piki, %35 gündüz varışı
-            if self.rng.random() < 0.65:
-                arr = self.rng.gauss(18.0, 1.6)
-                stay = self.rng.uniform(2.5, 9.0)
-            else:
-                arr = self.rng.gauss(11.5, 2.5)
-                stay = self.rng.uniform(1.5, 5.0)
-
-            arr = max(0.5, min(23.0, arr))
-            dep = min(24.0, arr + stay)
-
-            initial_soc = round(self.rng.uniform(0.18, 0.45), 2)
-            target_soc = round(self.rng.uniform(0.85, 1.00), 2)
-
-            ev = ElectricVehicle(
-                vehicle_id=vid,
-                model_name=spec["model_name"],
-                battery_capacity_kwh=spec["battery_capacity_kwh"],
-                initial_soc=initial_soc,
-                target_soc=target_soc,
-                arrival_time=round(arr, 2),
-                departure_time=round(dep, 2),
-                max_ac_power_kw=spec["max_ac_power_kw"],
-                max_dc_power_kw=spec["max_dc_power_kw"],
-                v2g_capable=spec["v2g_capable"],
-            )
-            fleet.append(ev)
-
-        fleet.sort(key=lambda x: x.arrival_time)
+        for _ in range(veh["count"]):
+            spec = catalog[self.rng.choice(len(catalog), p=shares)]
+            arrival = day + h(self.rng.normal(veh["arrival_hour"]["mean"], veh["arrival_hour"]["std"]))
+            arrival = min(max(arrival, start), start + h(12) - pd.Timedelta(minutes=1))
+            departure = day + h(24 + self.rng.normal(veh["departure_hour"]["mean"], veh["departure_hour"]["std"]))
+            departure = min(max(departure, arrival + h(1)), end)
+            soc = float(self.rng.uniform(veh["arrival_soc"]["min"], veh["arrival_soc"]["max"]))
+            fleet.append(ElectricVehicle(
+                vehicle_id="", model_name=spec["model"], battery_kwh=float(spec["battery_kwh"]),
+                soc_arrival=soc, target_soc=float(veh["target_soc"]), arrival=arrival, departure=departure,
+                max_ac_kw=float(spec["max_ac_kw"]), max_dc_kw=float(spec["max_dc_kw"]), v2g_capable=bool(spec["v2g"]),
+            ))
+        fleet.sort(key=lambda v: v.arrival)
+        for i, v in enumerate(fleet):
+            v.vehicle_id = f"EV{i + 1:02d}"
         return fleet
