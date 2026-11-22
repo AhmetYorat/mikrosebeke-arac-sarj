@@ -98,6 +98,40 @@ class ChargingStation:
             applied[u.charger_id] = p
         return applied
 
+    # --- optimizasyon (Senaryo 5) -----------------------------------------------------------------------------
+    @property
+    def n_chargers(self) -> int:
+        """Ünite sayısı: MILP'te "aynı anda en fazla n araç şarj olabilir" kısıtı."""
+        return len(self.units)
+
+    def _plan_unit_kw(self) -> float:
+        """Planlamada araçların AC ünitede şarj olacağı varsayılır (site otoparkında 8/10 ünite AC)."""
+        ac = [u.power_kw for u in self.units.values() if u.kind == "AC"]
+        return max(ac) if ac else max(u.power_kw for u in self.units.values())
+
+    def planned_sessions(self) -> pd.DataFrame:
+        """Gün başında bilinen filo: MILP'in araç başına kısıtları (ünite gücü, ayrılış, hedef SOC).
+
+        Kusursuz geliş bilgisi varsayımıdır (araçların ne zaman geleceği gün başında bilinir). Planı vehicle_id ile
+        tutun; decide() adımında VehicleRequest.vehicle_id -> charger_id eşlemesiyle Decision.ev_kw'ye çevirin.
+        Hedef kısıtı: geliş–ayrılış penceresinde Σ p · dt · charge_efficiency ≥ energy_needed_kwh.
+        """
+        unit_kw = self._plan_unit_kw()
+        cols = ["vehicle_id", "arrival", "departure", "battery_kwh", "soc_arrival", "target_soc",
+                "energy_needed_kwh", "max_charge_kw", "max_discharge_kw", "charge_efficiency"]
+        rows = [{
+            "vehicle_id": v.vehicle_id, "arrival": v.arrival, "departure": v.departure,
+            "battery_kwh": v.battery_kwh, "soc_arrival": v.soc_arrival, "target_soc": v.target_soc,
+            "energy_needed_kwh": max(0.0, (v.target_soc - v.soc_arrival) * v.battery_kwh),
+            "max_charge_kw": min(v.max_ac_kw, unit_kw),
+            "max_discharge_kw": self._plan_discharge_kw(v, unit_kw),
+            "charge_efficiency": self.eff,
+        } for v in self.vehicles]
+        return pd.DataFrame(rows, columns=cols)
+
+    def _plan_discharge_kw(self, v: ElectricVehicle, unit_kw: float) -> float:
+        return 0.0
+
     # --- çıktılar ---------------------------------------------------------------------------------------------
     def sessions(self) -> pd.DataFrame:
         """Araç başına bir satır: kim geldi, ne kadar bekledi, ne kadar enerji aldı, hedefe ulaştı mı.

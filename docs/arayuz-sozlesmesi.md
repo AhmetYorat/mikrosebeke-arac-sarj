@@ -135,6 +135,27 @@ apply(ctx, ev_kw: dict[charger_id, kW]) -> dict[charger_id, kW]
 - **Oturum tablosu:** `SimResult.sessions` (araç başına bir satır): `vehicle_id, model, battery_kwh, arrival, departure,
   first_charger, connected_at, soc_arrival, soc_final, target_soc, energy_kwh, reached_target, waited_h`.
   Kullanıcı memnuniyeti KPI'ı buradan hesaplanır. Sahte istasyonla çalışan senaryolarda boş tablodur.
+- **Kullanıcı memnuniyeti:** `microgrid.station.satisfaction(sessions)` → `arac_sayisi`, `hedefe_ulasma_orani`,
+  `hizmet_alamayan`, `ortalama_eksik_kwh`, `ortalama_bekleme_saat`.
+- **Güç dağıtım yardımcıları** (EMS `decide` içinde çağırabilir): `uncontrolled(vehicles, dt_h)`,
+  `by_departure(vehicles, budget_kw, dt_h)` (bütçeyi ayrılışı en yakın araçtan başlayarak dağıtır).
+
+**İstasyon → optimizasyon (Senaryo 5, Hafta 7).** MILP günü `prepare`'de planlar; araçları gün başında
+`station.planned_sessions()` ile alır (kusursuz geliş bilgisi varsayımı). Araç başına bir satır:
+
+| Sütun | Birim | MILP'teki karşılığı |
+| --- | --- | --- |
+| `vehicle_id` | — | karar değişkeni indeksi |
+| `arrival`, `departure` | Timestamp | araç yalnızca bu pencerede şarj/deşarj edilebilir |
+| `battery_kwh`, `soc_arrival`, `target_soc` | kWh, 0–1, 0–1 | SOC takibi |
+| `energy_needed_kwh` | kWh (batarya) | hedef: Σ p · dt · `charge_efficiency` ≥ bu değer |
+| `max_charge_kw` | kW | 0 ≤ p ≤ bu değer (AC ünite ile aracın OBC'sinin küçüğü; CC fazı) |
+| `max_discharge_kw` | kW | V2G üst sınırı; `station.v2g_enabled` kapalıysa 0 |
+| `charge_efficiency` | 0–1 | şebeke → batarya verimi |
+
+Ek kısıt: aynı anda şarj olan araç sayısı ≤ `station.n_chargers` (10). Plan `vehicle_id` ile tutulur; `decide`'da
+`VehicleRequest.vehicle_id → charger_id` eşlemesiyle `Decision.ev_kw`'ye çevrilir. CC-CV'nin %80 üstündeki azalması
+planda yok sayılır (varsayılan hedef SOC 0,8 olduğu için etkisizdir); gerçek sınırı `apply` uygular.
 
 ### YM-3: EMS (`EMS`) ve batarya (`Battery`)
 

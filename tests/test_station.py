@@ -208,3 +208,53 @@ def test_rotation_serves_more_vehicles(cfg):
 def test_default_day_serves_everyone(cfg):
     _, station = day_run(cfg)
     assert station.sessions().connected_at.notna().all()
+
+
+# --- Hafta 7: optimizasyon için istasyon kısıtları ------------------------------------------------------------
+PLAN_COLUMNS = ["vehicle_id", "arrival", "departure", "battery_kwh", "soc_arrival", "target_soc",
+                "energy_needed_kwh", "max_charge_kw", "max_discharge_kw", "charge_efficiency"]
+
+
+def test_planned_sessions_columns_and_rows(cfg):
+    s = ChargingStation(cfg, start_of(cfg))
+    plan = s.planned_sessions()
+    assert list(plan.columns) == PLAN_COLUMNS
+    assert len(plan) == cfg["vehicles"]["count"]
+    assert (plan.departure > plan.arrival).all()
+    assert s.n_chargers == 10
+    assert (plan.max_discharge_kw == 0).all()
+    assert set(plan.max_charge_kw) <= {11.0, 22.0}
+
+
+def test_planned_matches_live_vehicles(cfg):
+    s = ChargingStation(cfg, start_of(cfg))
+    plan = s.planned_sessions().set_index("vehicle_id")
+    for v in s.vehicles:
+        row = plan.loc[v.vehicle_id]
+        assert (row.arrival, row.departure, row.soc_arrival) == (v.arrival, v.departure, v.soc_arrival)
+
+
+class PlanEMS:
+    """Test için: planned_sessions'taki bilgiyle her aracın ihtiyacını kalış süresine eşit yayan EMS."""
+
+    def __init__(self, plan):
+        self.rate = {r.vehicle_id: r.energy_needed_kwh / (r.charge_efficiency * (r.departure - r.arrival).total_seconds() / 3600)
+                     for r in plan.itertuples()}
+
+    def prepare(self, forecast):
+        pass
+
+    def decide(self, inp):
+        from microgrid.interfaces import Decision
+        dt = inp.ctx.dt_h
+        # Kalış adım sınırlarına denk gelmediği için ilk/son adım kaybını telafi etmek üzere 1,2 katı
+        return Decision(ev_kw={v.charger_id: min(v.max_charge_kw, 1.2 * self.rate[v.vehicle_id]) for v in inp.vehicles})
+
+
+def test_plan_following_ems_reaches_targets(cfg):
+    from microgrid.station import satisfaction
+    c = apply_overrides(cfg, {"vehicles.count": 10})
+    index = time_index(c)
+    s = ChargingStation(c, index[0])
+    run(c, mock_inputs(c, index), s, PlanEMS(s.planned_sessions()), SimpleBattery(c))
+    assert satisfaction(s.sessions())["hedefe_ulasma_orani"] == 1
