@@ -72,6 +72,16 @@ ems:
   soc_floor: 0.30         # bu SOC'nin altındaki araç tarifeye bakmadan hemen taban SOC'ye kadar şarj edilir
   safety: 0.80            # planlamada ünite gücünün yalnızca bu kadarına güvenilir (ünite paylaşımı, CC-CV)
   bess_night_target_soc: 0.5   # gece ucuz dilimde batarya bu SOC'ye kadar şebekeden şarj olur (= bess.soc_initial: gün başı = gün sonu)
+  # Optimizasyonlu EMS (src/microgrid/ems/milp.py, Senaryo 5). Her adımda bağlı araçlarla gün sonuna kadar MILP çözer.
+  export_price_tl_per_kwh: 0.0          # şebekeye satış fiyatı; açık soru 2 (şimdilik satış ücretsiz, KPI ile aynı)
+  milp_peak_weight_tl_per_kw: 0.2       # tepe şebeke alımına küçük ağırlık: eşit maliyetli çözümler arasında düz olanı seçtirir
+  milp_unmet_penalty_tl_per_kwh: 30     # karşılanamayan araç enerjisi cezası (fiyatlardan çok büyük: hedef SOC neredeyse sert kısıt)
+  milp_site_penalty_tl_per_kw: 100      # site sınırı aşımı cezası (kısıt hiçbir koşulda çözümsüz bırakmasın)
+  bess_wear_tl_per_kwh: 0.05            # batarya deşarj başına aşınma bedeli (anlamsız çevrimi engeller)
+  milp_early_bias_tl_per_kwh_step: 0.001   # eşit maliyetli seçenekler arasında enerjiyi erken depolat (kayan ufukta 'sonra yaparım' tuzağı)
+  milp_vehicle_early_tl_per_kwh_step: 0.002   # aynı: araç şarjını eşit maliyetli adımların erkenine çek
+  milp_time_limit_s: 10                 # tek çözüm için zaman sınırı; aşılırsa kural tabanlı EMS'e düşülür
+  milp_gap: 0.0001                      # kabul edilen göreli optimallik açığı
 
 grid:
   # Üç ayrı sınır (EM-1): istasyon 150 kW (station.power_limit_kw) ⊂ site 180 kW ⊂ trafo 400 kVA

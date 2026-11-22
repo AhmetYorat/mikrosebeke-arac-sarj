@@ -17,6 +17,7 @@ from typing import Callable
 import pandas as pd
 
 from microgrid.ems.bess import BESS
+from microgrid.ems.milp import MilpEMS
 from microgrid.ems.rule_based import RuleBasedEMS
 from microgrid.sim.loop import SimResult, run, time_index
 from microgrid.sim.mocks import MockStation, UncontrolledEMS
@@ -76,6 +77,13 @@ SCENARIOS: dict[str, Scenario] = {
             "S3'ün araç kuralı + 200 kWh / 100 kW batarya (YM-3): puantta yükü bataryadan karşılar, gece ucuz tarifede "
             "ve PV fazlasıyla dolar, site sınırını aşacak anda devreye girer.",
             ems=lambda cfg: RuleBasedEMS(cfg, use_bess=True),
+            temporary=True,
+        ),
+        Scenario(
+            "S5 Optimizasyon (MILP)",
+            "Maliyeti en aza indiren kayan ufuklu MILP (YM-3, PuLP): her adımda bağlı araçlar, batarya, istasyon ve "
+            "site sınırlarıyla gün sonuna kadar çözülür, ilk adım uygulanır. Tepe alımı küçük ağırlıkla bastırılır.",
+            ems=lambda cfg: MilpEMS(cfg),
             temporary=True,
         ),
     ]

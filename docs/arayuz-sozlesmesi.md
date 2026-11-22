@@ -132,8 +132,10 @@ battery.apply(power_kw, dt_h) -> float    # uygulanan güç
 ```
 
 - `EmsInputs`: `ctx`, `pv_kw`, `base_load_kw`, `price_tl_per_kwh`, `vehicles`, `bess_soc`, `station_limit_kw`, `site_limit_kw`.
-- Kural tabanlı EMS `prepare`'i boş bırakır. MILP (Senaryo 5) tüm günü `prepare`'de çözer, `decide`'da o adımın
-  planını okur. İki EMS de aynı arayüzle döngüye takılır; senaryo değiştirmek tek satırdır.
+- Kural tabanlı EMS `prepare`'de yalnızca fiyat serisini saklar. MILP (Senaryo 5) `prepare`'de PV/yük/fiyat tahminini saklar,
+  `decide`'da bağlı araçlarla gün sonuna kadar olan ufku çözüp yalnızca ilk adımı uygular (kayan ufuk). Neden gün başında tek
+  çözüm değil: araçların geliş saati, SOC'si ve ayrılışı gün başında bilinmiyor, istasyon bunları adım adım `requests()` ile veriyor
+  ([ems.md](ems.md)). İki EMS de aynı arayüzle döngüye takılır; senaryo değiştirmek tek satırdır.
 - İki sınır var ve ikisine uymak EMS'in işidir (EM-1 kararı):
 
   | Sınır | Değer | Neyi sınırlar |

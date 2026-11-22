@@ -7,6 +7,7 @@ Kod: `src/microgrid/ems/` · Parametreler: `config/default.yaml → bess:` ve `e
 | `bess.py` | Batarya modeli: SOC, verim, güç ve SOC sınırları | S4–S6 |
 | `pv_first.py` | EMS v0: kontrolsüz şarj, PV → (batarya) → şebeke | S2 |
 | `rule_based.py` | Kural tabanlı akıllı şarj: SOC eşikleri + tarife; `use_bess=True` ile batarya kuralları | S3, S4 |
+| `milp.py` | Kayan ufuklu MILP (PuLP): maliyet en aza, sınırlar ve hedef SOC kısıt | S5 |
 
 ## Batarya (`bess.py`)
 
@@ -44,3 +45,26 @@ PV ile dolan enerji bu kapsamda değil: o enerji zaten bedelsiz (satış ücrets
 
 **Sınır:** kural açgözlüdür. Yükün gün içindeki değişimini ve yarının fiyatını bilmez; yalnızca tarifenin en ucuz ve
 en pahalı dilimini kullanır. Orta dilimde (gündüz) arbitraj yapmaz. Bu boşluğu optimizasyon (Senaryo 5) kapatır.
+
+## Optimizasyon (`milp.py`, Senaryo 5)
+
+**Kayan ufuk.** Her adımda bağlı araçlarla, bu adımdan gün sonuna kadar bir MILP çözülür; yalnızca ilk adım uygulanır.
+Şimdiki adım için gerçek değerler, sonrası için tahmin (`prepare`, YM-1 `data.forecast`) kullanılır. Gün başında tek çözüm
+yapılamaz çünkü araçların geliş saati, SOC'si ve ayrılışı o an bilinmiyor.
+
+| | |
+| --- | --- |
+| Değişkenler | araç şarj gücü `ch[v,t]` (ayrılışa kadar), batarya `bch/bdis[t]` + ikili `z[t]`, şebeke `imp/exp[t]`, batarya SOC |
+| Kısıtlar | güç dengesi, istasyon ≤ 150 kW, site ≤ 180 kW (cezalı gevşeme), batarya dinamiği ve SOC bandı, gün sonu SOC ≥ gün başı, araç hedef SOC (cezalı gevşeme) |
+| Amaç | Σ fiyat·alım·dt + 0.2 TL/kW·tepe alım + batarya aşınması + cezalar |
+
+Tepe ağırlığı küçük: maliyet aynı olan çözümler arasında düz olanı seçtirir, projenin ana sorusu (istasyonun getirdiği yük) bu.
+Gün sonu SOC kısıtı olmasa batarya günün sonunda boşalır ve maliyet olduğundan düşük görünürdü.
+
+Eşit maliyetli seçeneklerde kayan ufuk "sonra yaparım" tuzağına düşer (her adımda şarjı bir sonraki adıma erteler). Bunu
+engellemek için enerjiyi erken depolatan ve aracı erken şarj ettiren çok küçük ağırlıklar var (`milp_*_early_*`).
+
+Çözücü hata verirse ya da zaman aşımı olursa o adım `RuleBasedEMS`'e düşer (`MilpEMS.fallbacks`). Tam gün (96 adım) ≈ 6–8 sn.
+
+**PuLP sürümü:** `requirements.txt` PuLP'u `<4` ile sınırlıyor. PuLP 4 CBC'yi artık içermiyor (`pip install pulp[cbc]` ve ayrı çözücü
+gerekiyor) ve `LpVariable(...)`, `LpStatus` gibi eski API'yi kaldırdı.
