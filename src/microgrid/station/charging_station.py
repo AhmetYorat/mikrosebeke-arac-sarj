@@ -24,6 +24,8 @@ class ChargingStation:
         self.cv_threshold = st["cv_threshold_soc"]
         self.cv_min_fraction = st["cv_min_fraction"]
         self.rotate_when_full = st["rotate_when_full"]
+        self.v2g = st["v2g_enabled"]
+        self.v2g_min_soc = cfg["vehicles"]["v2g_min_soc"]
         self.units: dict[str, ChargingUnit] = {}
         for c in st["chargers"]:
             for i in range(c["count"]):
@@ -74,14 +76,19 @@ class ChargingStation:
         out = []
         for u in self._connected():
             v = u.vehicle
-            if v.reached_target:
+            dis = self._max_discharge(u, ctx)
+            if v.reached_target and dis <= 0:
                 continue
             out.append(VehicleRequest(
                 charger_id=u.charger_id, vehicle_id=v.vehicle_id, soc=v.soc, battery_kwh=v.battery_kwh,
                 target_soc=v.target_soc, departure=v.departure,
                 max_charge_kw=u.max_charge_kw(self.cv_threshold, self.cv_min_fraction),
+                max_discharge_kw=dis,
             ))
         return out
+
+    def _max_discharge(self, u: ChargingUnit, ctx: StepContext) -> float:
+        return u.max_discharge_kw(ctx.timestamp, ctx.dt_h, self.v2g_min_soc, self.eff) if self.v2g else 0.0
 
     def apply(self, ctx: StepContext, ev_kw: dict[str, float]) -> dict[str, float]:
         """Bağlı her ünite için uygulanan güç. Boş ya da bilinmeyen ünite anahtarları yok sayılır."""
@@ -93,6 +100,9 @@ class ChargingStation:
                 room_kw = v.energy_needed_kwh / (ctx.dt_h * self.eff)
                 p = min(p, u.max_charge_kw(self.cv_threshold, self.cv_min_fraction), room_kw)
                 v.charge(p, ctx.dt_h, self.eff)
+            elif p < 0:
+                p = -min(-p, self._max_discharge(u, ctx))   # V2G kapalıysa sınır 0
+                v.discharge(-p, ctx.dt_h, self.eff)
             else:
                 p = 0.0
             applied[u.charger_id] = p
@@ -130,7 +140,8 @@ class ChargingStation:
         return pd.DataFrame(rows, columns=cols)
 
     def _plan_discharge_kw(self, v: ElectricVehicle, unit_kw: float) -> float:
-        return 0.0
+        """V2G açık ve araç uygunsa ünite/OBC sınırı; MILP min SOC ve hedef kısıtlarını kendi SOC takibiyle uygular."""
+        return min(v.max_ac_kw, unit_kw) if (self.v2g and v.v2g_capable) else 0.0
 
     # --- çıktılar ---------------------------------------------------------------------------------------------
     def sessions(self) -> pd.DataFrame:

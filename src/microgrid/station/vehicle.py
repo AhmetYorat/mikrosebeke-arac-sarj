@@ -62,8 +62,36 @@ class ElectricVehicle:
         """Bu üniteden şu an çekebileceği en yüksek güç: ünite ve araç donanımının küçüğü, sonra CC-CV."""
         if self.reached_target:
             return 0.0
-        hw = min(self.max_ac_kw if kind.upper() == "AC" else self.max_dc_kw, unit_kw)
-        return cc_cv_limit(self.soc, hw, threshold, min_fraction)
+        return cc_cv_limit(self.soc, self.hw_kw(kind, unit_kw), threshold, min_fraction)
+
+    def hw_kw(self, kind: str, unit_kw: float) -> float:
+        """Ünite ile araç donanımının küçüğü (CC-CV öncesi). AC'de aracın OBC'si çift yönlü kabul edilir."""
+        return min(self.max_ac_kw if kind.upper() == "AC" else self.max_dc_kw, unit_kw)
+
+    def max_discharge_kw(self, ts: pd.Timestamp, dt_h: float, unit_kw: float, p_charge_kw: float,
+                         min_soc: float, eff: float) -> float:
+        """V2G'de bu adımda şebekeye verebileceği en yüksek güç (şebeke tarafı, pozitif).
+
+        İki garanti:
+          1. SOC min_soc'nin altına inmez.
+          2. Verilen enerji ayrılışa kadar geri doldurulabilir: bu adımdan sonra kalan sürede tam güçle şarj
+             edilirse araç yine hedef SOC'ye ulaşır. Koşul  t_sonra · p_şarj · η ≥ (hedef − soc) · B + e_çıkan,
+             e_çıkan için çözülünce  e_çıkan ≤ t_sonra · p_şarj · η − (hedef − soc) · B.
+        V2G'ye uygun olmayan araç için 0. (station.v2g_enabled kapalıysa istasyon bu metodu hiç çağırmaz.)
+        """
+        if not self.v2g_capable:
+            return 0.0
+        t_after = (self.departure - ts).total_seconds() / 3600 - dt_h
+        e_floor = (self.soc - min_soc) * self.battery_kwh
+        e_slack = t_after * p_charge_kw * eff - max(0.0, self.target_soc - self.soc) * self.battery_kwh
+        e_out = max(0.0, min(e_floor, e_slack))
+        return min(unit_kw, e_out * eff / dt_h)
+
+    def discharge(self, p_kw: float, dt_h: float, eff: float) -> float:
+        """V2G: p_kw (≥ 0, şebeke tarafı) verir; bataryadan p · dt / η çıkar."""
+        self.soc -= p_kw * dt_h / (eff * self.battery_kwh)
+        self.energy_out_kwh += p_kw * dt_h
+        return p_kw
 
     def charge(self, p_kw: float, dt_h: float, eff: float) -> float:
         """p_kw (≥ 0, şebeke tarafı) ile dt_h saat şarj eder. Sınırlama istasyonda yapılır; burada yalnızca uygulanır."""
