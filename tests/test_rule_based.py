@@ -32,12 +32,12 @@ def ems(cfg, index):
     return e
 
 
-def _inp(cfg, index, hhmm, vehicles, pv=0.0, base=30.0, station_limit=150.0, site_limit=180.0):
+def _inp(cfg, index, hhmm, vehicles, pv=0.0, base=30.0, station_limit=150.0, site_limit=180.0, bess_soc=0.5):
     ts = pd.Timestamp(f"{'2023-06-21' if hhmm >= '12:00' else '2023-06-22'} {hhmm}", tz=TZ)
     step = int((ts - index[0]) / pd.Timedelta(minutes=15))
     return EmsInputs(
         ctx=StepContext(step=step, timestamp=ts, dt_h=0.25), pv_kw=pv, base_load_kw=base,
-        price_tl_per_kwh=float(price_series(cfg, index).iloc[step]), vehicles=list(vehicles), bess_soc=0.5,
+        price_tl_per_kwh=float(price_series(cfg, index).iloc[step]), vehicles=list(vehicles), bess_soc=bess_soc,
         station_limit_kw=station_limit, site_limit_kw=site_limit,
     )
 
@@ -180,3 +180,105 @@ def test_loop_other_seeds_same_energy_and_no_worse_satisfaction(cfg, index, seed
     assert s3.ev_kw.sum() == pytest.approx(s2.ev_kw.sum(), rel=1e-6)
     assert all(soc3[k] >= soc2[k] - 0.01 for k in soc2)
     assert (s3.ev_kw <= cfg["station"]["power_limit_kw"] + 1e-6).all()
+
+
+# --- batarya kuralları (Senaryo 4) ---
+
+@pytest.fixture()
+def ems_b(cfg, index):
+    e = RuleBasedEMS(cfg, use_bess=True)
+    e.prepare(pd.DataFrame({"pv_kw": 0.0, "base_load_kw": 30.0, "price_tl_per_kwh": price_series(cfg, index)}))
+    return e
+
+
+def test_without_use_bess_battery_is_idle(cfg, index, ems):
+    assert ems.decide(_inp(cfg, index, "19:00", [], base=80.0)).bess_kw == 0.0
+
+
+def test_pv_surplus_charges_battery(cfg, index, ems_b):
+    d = ems_b.decide(_inp(cfg, index, "13:00", [], pv=90.0, base=30.0, bess_soc=0.5))
+    assert d.bess_kw == pytest.approx(60.0)
+
+
+def test_pv_surplus_goes_to_vehicles_before_battery(cfg, index, ems_b):
+    d = ems_b.decide(_inp(cfg, index, "19:00", [_veh(soc=0.4)], pv=60.0, base=20.0))
+    assert d.ev_kw["AC1"] == pytest.approx(22.0)
+    assert d.bess_kw == pytest.approx(60.0 - 20.0 - 22.0)
+
+
+def test_pv_charge_stops_at_soc_max(cfg, index, ems_b):
+    d = ems_b.decide(_inp(cfg, index, "13:00", [], pv=90.0, base=30.0, bess_soc=0.9))
+    assert d.bess_kw == pytest.approx(0.0)
+
+
+def test_puant_discharge_covers_load_but_shares_energy_over_remaining_puant(cfg, index, ems_b):
+    d = ems_b.decide(_inp(cfg, index, "17:00", [], base=30.0, bess_soc=0.5))
+    stored = (0.5 - 0.1) * 200
+    assert -d.bess_kw == pytest.approx(min(30.0, stored * 0.95 / (20 * 0.25)))      # 17:00-22:00 = 20 adım
+    assert d.bess_kw < 0
+
+
+def test_puant_discharge_never_exports(cfg, index, ems_b):
+    d = ems_b.decide(_inp(cfg, index, "19:00", [], base=10.0, bess_soc=0.9))
+    assert -d.bess_kw <= 10.0 + 1e-9
+
+
+def test_no_discharge_below_soc_min(cfg, index, ems_b):
+    d = ems_b.decide(_inp(cfg, index, "19:00", [], base=50.0, bess_soc=0.1))
+    assert d.bess_kw == pytest.approx(0.0)
+
+
+def test_night_charges_toward_target_spread_over_cheap_steps(cfg, index, ems_b):
+    d = ems_b.decide(_inp(cfg, index, "22:00", [], base=30.0, bess_soc=0.1))
+    need = (0.5 - 0.1) * 200
+    assert d.bess_kw == pytest.approx(need / (32 * 0.25 * 0.95))
+
+
+def test_night_does_not_charge_when_target_reached(cfg, index, ems_b):
+    assert ems_b.decide(_inp(cfg, index, "23:00", [], bess_soc=0.5)).bess_kw == 0.0
+    assert ems_b.decide(_inp(cfg, index, "23:00", [], bess_soc=0.8)).bess_kw == 0.0
+
+
+def test_night_charge_respects_site_limit(cfg, index, ems_b):
+    d = ems_b.decide(_inp(cfg, index, "05:45", [], base=175.0, bess_soc=0.1))
+    assert d.bess_kw <= 180.0 - 175.0 + 1e-9
+
+
+def test_midday_tier_neither_charges_nor_discharges_without_pv(cfg, index, ems_b):
+    assert ems_b.decide(_inp(cfg, index, "14:00", [], base=40.0, bess_soc=0.5)).bess_kw == 0.0
+
+
+def test_site_limit_duty_overrides_tariff_and_reserve(cfg, index, ems_b):
+    """Gündüz diliminde bile, araçlar site sınırını aşacaksa batarya aradaki farkı verir."""
+    vs = [_veh(f"AC{i}", soc=0.2, dep="2023-06-21 15:00") for i in range(1, 9)]
+    d = ems_b.decide(_inp(cfg, index, "14:00", vs, base=60.0, station_limit=150.0, bess_soc=0.5))
+    grid = 60.0 + sum(d.ev_kw.values()) + d.bess_kw
+    assert d.bess_kw < 0
+    assert grid <= 180.0 + 1e-9
+
+
+def test_site_duty_lets_vehicles_charge_more_than_without_battery(cfg, index, ems, ems_b):
+    vs = [_veh(f"AC{i}", soc=0.2, dep="2023-06-21 15:00") for i in range(1, 9)]
+    a = ems.decide(_inp(cfg, index, "14:00", vs, base=60.0))
+    b = ems_b.decide(_inp(cfg, index, "14:00", vs, base=60.0))
+    assert sum(b.ev_kw.values()) > sum(a.ev_kw.values())
+    assert sum(b.ev_kw.values()) <= 150.0 + 1e-9
+
+
+def test_loop_s4_cheaper_than_s3_and_battery_stays_in_band(cfg, index):
+    s3, _ = _run(cfg, index, RuleBasedEMS(cfg))
+    s4, _ = _run(cfg, index, RuleBasedEMS(cfg, use_bess=True))
+    k3, k4 = compute(s3, cfg), compute(s4, cfg)
+    assert k4["maliyet_tl"] < k3["maliyet_tl"]
+    assert k4["arac_sarj_kwh"] == pytest.approx(k3["arac_sarj_kwh"], rel=1e-6)
+    assert s4.bess_soc.between(cfg["bess"]["soc_min"] - 1e-9, cfg["bess"]["soc_max"] + 1e-9).all()
+    assert ((s4.base_load_kw + s4.ev_kw + s4.bess_kw - s4.pv_kw) - s4.grid_kw).abs().max() < 1e-9
+    assert s4.grid_kw.max() <= cfg["grid"]["site_import_limit_kw"] + 1e-6
+
+
+def test_loop_s4_discharges_in_puant_and_charges_at_night(cfg, index):
+    s4, _ = _run(cfg, index, RuleBasedEMS(cfg, use_bess=True))
+    puant = s4[(s4.index.hour >= 17) & (s4.index.hour < 22)]
+    night = s4[(s4.index.hour >= 22) | (s4.index.hour < 6)]
+    assert puant.bess_kw.min() < -5
+    assert night.bess_kw.max() > 5

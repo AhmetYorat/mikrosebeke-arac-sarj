@@ -71,6 +71,13 @@ SCENARIOS: dict[str, Scenario] = {
             ems=lambda cfg: RuleBasedEMS(cfg),
             temporary=True,   # MockStation: CC-CV yok (YM-2 istasyonu bekleniyor)
         ),
+        Scenario(
+            "S4 Akıllı şarj + batarya",
+            "S3'ün araç kuralı + 200 kWh / 100 kW batarya (YM-3): puantta yükü bataryadan karşılar, gece ucuz tarifede "
+            "ve PV fazlasıyla dolar, site sınırını aşacak anda devreye girer.",
+            ems=lambda cfg: RuleBasedEMS(cfg, use_bess=True),
+            temporary=True,
+        ),
     ]
 }
 

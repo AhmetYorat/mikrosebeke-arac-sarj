@@ -71,6 +71,7 @@ ems:
   # Kural tabanlı akıllı şarj (YM-3, src/microgrid/ems/rule_based.py). Ayrıntı: docs/ems.md
   soc_floor: 0.30         # bu SOC'nin altındaki araç tarifeye bakmadan hemen taban SOC'ye kadar şarj edilir
   safety: 0.80            # planlamada ünite gücünün yalnızca bu kadarına güvenilir (ünite paylaşımı, CC-CV)
+  bess_night_target_soc: 0.5   # gece ucuz dilimde batarya bu SOC'ye kadar şebekeden şarj olur (= bess.soc_initial: gün başı = gün sonu)
 
 grid:
   # Üç ayrı sınır (EM-1): istasyon 150 kW (station.power_limit_kw) ⊂ site 180 kW ⊂ trafo 400 kVA

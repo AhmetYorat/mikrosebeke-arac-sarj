@@ -23,7 +23,22 @@ Her adımda, bağlı her araç için:
   7. Toplam, `station_limit_kw` ve `site_limit_kw − sabit yük + PV` ile sınırlanır. Sınır yetmezse ayrılışa en
      yakın (en az boşluklu) araç önce doldurulur.
 
-Batarya (Senaryo 4) ve V2G (Senaryo 6) kuralları bu sınıfa Hafta 6 ve 8'de eklenir.
+Batarya (`use_bess=True`, Senaryo 4), araçlardan sonra, kalan net yüke bakarak şu sırayla karar verir:
+
+  a. Site sınırı: araç şarjı sonrası şebeke alımı `site_limit_kw`'ı aşacaksa batarya aradaki farkı verir
+     (SOC tabanına kadar, tarifeden bağımsız). Bu kural diğerlerinden önce gelir.
+  b. PV fazlası: PV, sabit yük ve araçları aştıysa fazla bataryaya girer (şebekeye satış ücretsiz olduğu
+     için boşa gitmesin).
+  c. Puant: en pahalı dilimde net yük varsa batarya bu yükü karşılar. Enerji, kalan puant adımlarına
+     eşit paylaştırılır; ilk saatte boşalıp son saatte kalmasın.
+  d. Gece: en ucuz dilimde SOC `ems.bess_night_target_soc`'un altındaysa şebekeden şarj olur; eksik enerji
+     kalan ucuz adımlara eşit yayılır (yeni tepe oluşmasın) ve site sınırını aşmaz.
+
+Gece hedef SOC'si başlangıç SOC'sine (0.5) eşittir: temsili gün tekrar eden bir gün sayıldığı için
+gün sonunda batarya gün başındaki seviyeye döner; aksi hâlde gün sonunda depoda kalan enerji maliyetsiz
+görünür ve senaryolar adil karşılaştırılamazdı.
+
+V2G (Senaryo 6) kuralları Hafta 8'de eklenir.
 """
 from __future__ import annotations
 
@@ -38,10 +53,13 @@ _EPS = 1e-9
 
 
 class RuleBasedEMS:
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, use_bess: bool = False):
         e = cfg["ems"]
         self.soc_floor: float = e["soc_floor"]
         self.safety: float = e["safety"]
+        self.use_bess = use_bess
+        self.bess = cfg["bess"]
+        self.night_target_soc: float = e["bess_night_target_soc"]
         self._price: np.ndarray | None = None
 
     # --- sözleşme ---
@@ -51,10 +69,19 @@ class RuleBasedEMS:
         self._price = forecast["price_tl_per_kwh"].to_numpy(dtype=float)
 
     def decide(self, inp: EmsInputs) -> Decision:
-        ev = self._charge_plan(inp)
-        ev = self._add_pv_surplus(inp, ev)
-        ev = self._limit(inp, ev)
-        return Decision(ev_kw=ev)
+        ev = self._add_pv_surplus(inp, self._charge_plan(inp))
+        if not self.use_bess:
+            return Decision(ev_kw=self._limit(inp, ev))
+
+        # a. Site sınırı için gereken deşarj, araç sınırlaması için gereken payı da büyütür
+        ev = self._limit(inp, ev, site=False)
+        site_duty_kw = min(self.bess["power_kw"], max(0.0, inp.base_load_kw + sum(ev.values()) - inp.pv_kw - inp.site_limit_kw))
+        ev = self._limit(inp, ev, bess_kw=-site_duty_kw)
+        net = inp.base_load_kw + sum(ev.values()) - inp.pv_kw
+        bess = self._bess_power(inp, net)
+        if site_duty_kw > 0 and -bess < site_duty_kw:
+            bess = -site_duty_kw
+        return Decision(ev_kw=ev, bess_kw=bess)
 
     # --- araç şarjı ---
 
@@ -119,9 +146,11 @@ class RuleBasedEMS:
         site_room = inp.site_limit_kw - inp.base_load_kw + inp.pv_kw - bess_kw
         return max(0.0, min(inp.station_limit_kw, site_room))
 
-    def _limit(self, inp: EmsInputs, ev: dict[str, float], bess_kw: float = 0.0) -> dict[str, float]:
-        """7. Toplamı sınıra indirir; sınır yetmezse ayrılışa en yakın araç önce doldurulur."""
-        room = self._headroom_kw(inp, bess_kw)
+    def _limit(self, inp: EmsInputs, ev: dict[str, float], bess_kw: float = 0.0, site: bool = True) -> dict[str, float]:
+        """7. Toplamı sınıra indirir; sınır yetmezse ayrılışa en yakın araç önce doldurulur.
+
+        site=False yalnızca istasyon sınırını uygular (bataryanın site sınırına katkısı henüz bilinmiyor)."""
+        room = self._headroom_kw(inp, bess_kw) if site else inp.station_limit_kw
         if sum(ev.values()) <= room + _EPS:
             return ev
         out = {k: 0.0 for k in ev}
@@ -132,3 +161,42 @@ class RuleBasedEMS:
             if room <= 0:
                 break
         return out
+
+    # --- batarya ---
+
+    def _remaining_steps(self, inp: EmsInputs, price: float, cmp) -> int:
+        """Şimdiden gün sonuna kadar fiyatı `cmp(p, price)` koşulunu sağlayan adım sayısı (şu an dahil)."""
+        if self._price is None:
+            return 0
+        tail = self._price[inp.ctx.step:]
+        return int(cmp(tail, price).sum())
+
+    def _bess_power(self, inp: EmsInputs, net_kw: float) -> float:
+        """b-d kuralları. net_kw = sabit yük + araçlar − PV (> 0 şebekeden çekilecek, < 0 PV fazlası)."""
+        b, dt = self.bess, inp.ctx.dt_h
+        power, cap, eta = b["power_kw"], b["capacity_kwh"], b["efficiency"]
+        stored = (inp.bess_soc - b["soc_min"]) * cap                     # taban üstündeki enerji
+        room = (b["soc_max"] - inp.bess_soc) * cap
+
+        # b. PV fazlası
+        if net_kw < 0:
+            return min(-net_kw, power, room / (dt * eta))
+        if self._price is None:
+            return 0.0
+        lo, hi = float(self._price.min()), float(self._price.max())
+        if hi - lo < _EPS:
+            return 0.0                                                   # düz tarifede arbitraj yok
+
+        # c. puant: net yükü karşıla, enerjiyi kalan puant adımlarına paylaştır
+        if inp.price_tl_per_kwh >= hi - _EPS:
+            n = max(1, self._remaining_steps(inp, hi, lambda a, x: a >= x - _EPS))
+            share_kw = stored * eta / (n * dt)
+            return -min(net_kw, power, share_kw)
+
+        # d. gece: hedef SOC'ye kadar kalan ucuz adımlara eşit yayarak şarj
+        if inp.price_tl_per_kwh <= lo + _EPS and inp.bess_soc < self.night_target_soc - _EPS:
+            n = max(1, self._remaining_steps(inp, lo, lambda a, x: a <= x + _EPS))
+            need_kwh = (self.night_target_soc - inp.bess_soc) * cap
+            p = need_kwh / (n * dt * eta)
+            return max(0.0, min(p, power, room / (dt * eta), inp.site_limit_kw - net_kw))
+        return 0.0
