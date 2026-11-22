@@ -33,7 +33,14 @@ streamlit run dashboard/app.py
 
 `pytest` yeşil geçmeli, ikinci komut tarayıcıda dashboard'u açmalı.
 
-Simülasyon döngüsünü sahte modüller ve pandapower ağıyla denemek için: `python -m microgrid.sim` (sonuçlar `results/` altına yazılır).
+Simülasyon döngüsü (v0): önce veriyi bir kez hazırla, sonra döngüyü çalıştır. Sonuçlar `results/` altına yazılır.
+
+```bash
+python -m microgrid.data          # PVGIS indirir, yük profillerini üretir (data/processed/)
+python -m microgrid.sim --gun ikisi   # Haziran ve Aralık temsili günleri; --mock: sahte girdiler
+```
+
+PV, sabit yük ve tarife gerçek veriden gelir; istasyon ve EMS henüz sahte (kontrolsüz şarj).
 Tek seferlik yük akışı: `python -m microgrid.grid` (bkz. [docs/sebeke-modeli.md](docs/sebeke-modeli.md)).
 
 ## Klasör yapısı
