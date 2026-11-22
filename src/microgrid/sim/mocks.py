@@ -105,6 +105,76 @@ class UncontrolledEMS:
         })
 
 
+class CheapHoursEMS:
+    """GEÇİCİ referans akıllı şarj (YM-4). YM-3'ün kural tabanlı EMS'i gelince Senaryo 3'te onunla değiştirilecek.
+
+    Amaç YM-3'ün yerini almak değil; dashboard'daki "kontrolsüz vs. akıllı" karşılaştırmasının uçtan uca
+    çalıştığını göstermek ve YM-3'e kıyas noktası vermek. Kural:
+      - Gece diliminde (en ucuz tarife) her araç ihtiyacını ayrılışına kadar kalan gece saatlerine eşit yayar.
+        Neden tam güçle değil: hepsi 22:00'de tam güçle başlarsa puanttan kaçarken 22:00'de yeni bir tepe
+        oluşur ("rebound peak"; ilk denemede tepe 157 kW'tan 180 kW'a çıktı).
+      - Diğer saatlerde araç yalnızca ayrılmadan önce kalan gece saatlerine sığmayacak kadarını çeker.
+      - PV fazlası (PV > sabit yük) varsa her saatte araçlara verilir.
+      - Toplam, istasyon sınırını ve site sınırının bıraktığı payı aşmaz. Batarya kullanılmaz.
+    """
+
+    SAFETY = 0.8   # gece kapasitesinin ancak bu kadarına güvenilir (ünite paylaşımı, CC-CV)
+
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+        prices = [p["price_tl_per_kwh"] for p in cfg["tariff"]["periods"]]
+        self.cheapest = min(prices)
+
+    def _is_cheap(self, ts: pd.Timestamp) -> bool:
+        from microgrid.data.tariff import price_at
+        return price_at(self.cfg, ts.hour + ts.minute / 60) <= self.cheapest
+
+    def _cheap_hours_until(self, start: pd.Timestamp, end: pd.Timestamp, dt_h: float) -> float:
+        step = pd.Timedelta(hours=dt_h)
+        n, ts = 0, start
+        while ts + step <= end:
+            n += self._is_cheap(ts)
+            ts += step
+        return n * dt_h
+
+    def prepare(self, forecast: pd.DataFrame) -> None:
+        pass
+
+    def decide(self, inp: EmsInputs) -> Decision:
+        dt = inp.ctx.dt_h
+        now = inp.ctx.timestamp
+        cheap_now = self._is_cheap(now)
+        surplus = max(0.0, inp.pv_kw - inp.base_load_kw)
+
+        ev = {}
+        for v in inp.vehicles:
+            need = v.energy_needed_kwh
+            cap = min(v.max_charge_kw, need / dt)
+            if cheap_now:
+                left = self._cheap_hours_until(now, v.departure, dt)
+                ev[v.charger_id] = min(cap, need / max(self.SAFETY * left, dt))
+            else:
+                later = v.max_charge_kw * self._cheap_hours_until(now + pd.Timedelta(hours=dt), v.departure, dt)
+                ev[v.charger_id] = min(cap, max(0.0, need - self.SAFETY * later) / dt)
+
+        # PV fazlasını henüz tam güçte olmayan araçlara dağıt
+        for v in inp.vehicles:
+            if surplus <= 0:
+                break
+            room = min(v.max_charge_kw, v.energy_needed_kwh / dt) - ev[v.charger_id]
+            extra = min(room, surplus)
+            ev[v.charger_id] += extra
+            surplus -= extra
+
+        headroom = max(0.0, min(inp.station_limit_kw, inp.site_limit_kw - inp.base_load_kw + inp.pv_kw))
+        total = sum(ev.values())
+        if total > headroom > 0:
+            ev = {k: p * headroom / total for k, p in ev.items()}
+        elif headroom == 0:
+            ev = {k: 0.0 for k in ev}
+        return Decision(ev_kw=ev)
+
+
 class SimpleBattery:
     """Güç ve SOC sınırları, şarjda verim kaybı."""
 

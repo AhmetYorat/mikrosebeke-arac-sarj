@@ -10,6 +10,7 @@ import streamlit as st
 import charts
 from microgrid.config import load_config
 from microgrid.grid import PandapowerGrid
+from microgrid.kpi import compare, compute
 from microgrid.sim.loop import time_index
 from microgrid.sim.scenarios import SCENARIOS, apply_overrides, simulate
 from microgrid.sim.setup import SAHTE, TEMSILI_GUNLER, load_inputs, with_start
@@ -51,7 +52,9 @@ with st.sidebar:
 
 overrides = {k: v for k, v in overrides.items() if k not in fixed}
 cfg = apply_overrides(with_start(base, TEMSILI_GUNLER[day]), overrides)
-steps, station, source = run_cached(json.dumps(cfg, sort_keys=True, default=str), scenario_name, with_grid)
+cfg_json = json.dumps(cfg, sort_keys=True, default=str)
+steps, station, source = run_cached(cfg_json, scenario_name, with_grid)
+BASELINE = "S2 Kontrolsüz şarj"   # akıllı senaryolar buna göre kıyaslanır
 
 # ---- Başlık ----
 st.title("Mikro-Şebeke + EV Şarj İstasyonu")
@@ -62,15 +65,36 @@ if scenario.temporary:
     st.info("Bu senaryo henüz sahte istasyon/EMS modülüyle çalışıyor; YM-2/YM-3 modülleri gelince sonuçlar değişecek.",
             icon="ℹ️")
 
-dt = cfg["simulation"]["step_minutes"] / 60
-c = st.columns(4)
-c[0].metric("Şebeke tepe alımı", f"{steps['grid_kw'].max():.0f} kW", help=f"{steps['grid_kw'].idxmax():%H:%M}")
-c[1].metric("İstasyon tepe gücü", f"{steps['ev_kw'].max():.0f} kW")
-c[2].metric("Araç şarjı", f"{steps['ev_kw'].clip(lower=0).sum() * dt:.0f} kWh")
-c[3].metric("Günlük maliyet", f"{steps['cost_tl'].sum():,.0f} TL".replace(",", "."))
+# ---- KPI kartları (YM-1'in KPI modülü; tanımlar src/microgrid/kpi.py) ----
+k = compute(steps, cfg)
+ref = compute(run_cached(cfg_json, BASELINE, with_grid)[0], cfg) if scenario_name != BASELINE else None
+
+
+def card(col, label, key, fmt, unit="", inverse=True, help=None):
+    """inverse=True: düşmesi iyi olan göstergeler (tepe, maliyet) yeşil görünür."""
+    value = k[key]
+    delta = None
+    if ref is not None and value == value and ref[key] == ref[key]:   # NaN değilse
+        delta = f"{value - ref[key]:+{fmt}} {unit}".strip() + f" ({BASELINE.split()[0]}'ye göre)"
+    tr = lambda t: t.replace(",", ".")   # Türkçe binlik ayırıcı: 3.975 TL
+    col.metric(label, tr(f"{value:{fmt}} {unit}".strip()) if value == value else "—", delta and tr(delta),
+               delta_color="inverse" if inverse else "normal", help=help)
+
+
+row1 = st.columns(4)
+card(row1[0], "Şebeke tepe alımı", "tepe_alim_kw", ".0f", "kW", help=f"Saat: {k['tepe_alim_saati']}")
+card(row1[1], "Puant tepe alımı (17–22)", "puant_tepe_alim_kw", ".0f", "kW")
+card(row1[2], "Günlük maliyet", "maliyet_tl", ",.0f", "TL")
+card(row1[3], "Araç şarjının puanttaki payı", "arac_sarj_puant_payi", ".0%")
+row2 = st.columns(4)
+card(row2[0], "Araç şarjı", "arac_sarj_kwh", ".0f", "kWh", inverse=False)
+card(row2[1], "PV öz tüketim oranı", "oz_tuketim_orani", ".0%", inverse=False)
+card(row2[2], "Site sınırı aşımı", "site_siniri_asim_adim", ".0f", "adım")
+card(row2[3], "En düşük gerilim", "min_gerilim_pu", ".3f", "p.u.", inverse=False)
 
 # ---- Sekmeler ----
-tab_flow, tab_station, tab_grid, tab_data = st.tabs(["Güç akışları", "Şarj istasyonu", "Şebeke", "Veri"])
+tab_flow, tab_station, tab_grid, tab_cmp, tab_data = st.tabs(
+    ["Güç akışları", "Şarj istasyonu", "Şebeke", "Senaryo karşılaştırması", "Veri"])
 
 with tab_flow:
     st.plotly_chart(charts.power_flows(steps, cfg), width="stretch")
@@ -91,6 +115,17 @@ with tab_grid:
         st.plotly_chart(charts.grid_quality(steps, cfg), width="stretch")
     else:
         st.write("Yük akışı kapalı. Kenar çubuğundan açın.")
+
+with tab_cmp:
+    st.caption("Aynı gün ve parametrelerle bütün senaryolar. Kontrolsüz şarjın akşam tepesi akıllı şarjla nereye gidiyor?")
+    results = {name: run_cached(cfg_json, name, with_grid)[0] for name in SCENARIOS}
+    st.plotly_chart(charts.scenario_comparison(results, cfg), width="stretch")
+    table = compare(results, cfg)
+    shown = ["tepe_alim_kw", "tepe_alim_saati", "puant_tepe_alim_kw", "maliyet_tl", "arac_sarj_kwh",
+             "arac_sarj_puant_payi", "alim_puant_kwh", "alim_gece_kwh", "oz_tuketim_orani", "site_siniri_asim_adim",
+             "min_gerilim_pu", "max_kablo_yuklenme_pct", "max_trafo_yuklenme_pct"]
+    st.dataframe(table.loc[shown].map(lambda v: f"{v:.2f}" if isinstance(v, float) else v), width="stretch")
+    st.download_button("KPI tablosunu indir (CSV)", table.to_csv().encode("utf-8"), file_name=f"kpi_{day}.csv")
 
 with tab_data:
     st.dataframe(steps, width="stretch")

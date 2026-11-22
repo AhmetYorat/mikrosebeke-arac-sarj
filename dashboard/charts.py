@@ -102,3 +102,26 @@ def grid_quality(steps: pd.DataFrame, cfg: dict) -> go.Figure:
         height=380, hovermode="x unified", margin=dict(t=30, b=10), legend=dict(orientation="h", y=-0.2),
     )
     return fig
+
+
+SCENARIO_COLORS = ["#7A8793", "#D1495B", "#2E86AB", "#3B8C4A", "#E0A100", "#6C4AB6"]
+
+
+def scenario_comparison(results: dict, cfg: dict) -> go.Figure:
+    """Senaryoların şebeke alımı (üst) ve istasyon gücü (alt) üst üste. results: {senaryo adı: adım tablosu}."""
+    from plotly.subplots import make_subplots
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                        subplot_titles=("Şebekeden alım (kW)", "Şarj istasyonu gücü (kW)"))
+    for i, (name, steps) in enumerate(results.items()):
+        color = SCENARIO_COLORS[i % len(SCENARIO_COLORS)]
+        for row, col in ((1, "grid_kw"), (2, "ev_kw")):
+            fig.add_trace(go.Scatter(x=steps.index, y=steps[col], name=name, legendgroup=name, showlegend=row == 1,
+                                     line=dict(color=color, width=2.6), hovertemplate=f"{name}: %{{y:.1f}} kW"),
+                          row=row, col=1)
+    fig.add_hline(y=cfg["grid"]["site_import_limit_kw"], line_dash="dash", row=1, col=1,
+                  annotation_text="site sınırı", annotation_position="top right")
+    first = next(iter(results.values()))
+    _puant_bands(fig, first.index)
+    fig.update_layout(height=560, hovermode="x unified", margin=dict(t=40, b=10), legend=dict(orientation="h", y=-0.1))
+    return fig
