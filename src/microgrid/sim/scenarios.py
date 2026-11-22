@@ -17,7 +17,7 @@ from typing import Callable
 import pandas as pd
 
 from microgrid.sim.loop import SimResult, run, time_index
-from microgrid.sim.mocks import MockStation, SimpleBattery, UncontrolledEMS
+from microgrid.sim.mocks import CheapHoursEMS, MockStation, SimpleBattery, UncontrolledEMS
 
 
 @dataclass
@@ -61,6 +61,13 @@ SCENARIOS: dict[str, Scenario] = {
             "S2 Kontrolsüz şarj",
             "Araç geldiği an tam güçle şarj olur, batarya kullanılmaz. Sorunun görüldüğü senaryo.",
             temporary=True,   # MockStation: CC-CV yok (YM-2 istasyonu bekleniyor)
+        ),
+        Scenario(
+            "S3 Akıllı şarj (geçici)",
+            "Gece tarifesine kaydırma + PV fazlası + sınırlara uyum. GEÇİCİ: YM-4'ün referans kuralı; "
+            "YM-3'ün kural tabanlı EMS'i gelince onunla değiştirilecek.",
+            ems=lambda cfg: CheapHoursEMS(cfg),
+            temporary=True,
         ),
     ]
 }
