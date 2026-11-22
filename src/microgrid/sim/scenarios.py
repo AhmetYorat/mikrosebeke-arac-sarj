@@ -20,7 +20,7 @@ from microgrid.ems.bess import BESS
 from microgrid.ems.milp import MilpEMS
 from microgrid.ems.rule_based import RuleBasedEMS
 from microgrid.sim.loop import SimResult, run, time_index
-from microgrid.sim.mocks import MockStation, UncontrolledEMS
+from microgrid.sim.mocks import MockStation, UncontrolledEMS, V2GMockStation
 
 
 @dataclass
@@ -85,6 +85,14 @@ SCENARIOS: dict[str, Scenario] = {
             "site sınırlarıyla gün sonuna kadar çözülür, ilk adım uygulanır. Tepe alımı küçük ağırlıkla bastırılır.",
             ems=lambda cfg: MilpEMS(cfg),
             temporary=True,
+        ),
+        Scenario(
+            "S6 V2G (MILP)",
+            "S5'e V2G eklenir (YM-3): araçların %40'ı şebekeye geri verebilir (11 kW). Araç SOC'si 0.30 altına inmez, "
+            "ayrılışta hedef SOC garanti. Karşılaştırma tabanı: aynı istasyonda V2G kapalı (S5).",
+            ems=lambda cfg: MilpEMS(cfg, v2g=True),
+            station=lambda cfg, start: V2GMockStation(cfg, start),
+            temporary=True,   # V2GMockStation: YM-2 istasyonu bekleniyor
         ),
     ]
 }

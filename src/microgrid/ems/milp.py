@@ -1,4 +1,4 @@
-"""Optimizasyonlu EMS (YM-3, Hafta 7): kayan ufuklu MILP (PuLP), Senaryo 5.
+"""Optimizasyonlu EMS (YM-3, Hafta 7-8): kayan ufuklu MILP (PuLP). Senaryo 5; `v2g=True` ile Senaryo 6.
 
 Neden kayan ufuk (her adımda yeniden çözüm), gün başında tek çözüm değil:
 sözleşme MILP'in tüm günü `prepare`'de çözmesini öngörüyordu, ama araçların geliş saati, SOC'si ve ayrılışı
@@ -13,9 +13,10 @@ Model (t = bu adımdan gün sonuna, dt = adım süresi). Tüm güçler kW, işar
 
 Karar değişkenleri
   ch[v,t] ≥ 0     araç v'nin şarj gücü, ≤ max_charge_kw; yalnızca ayrılışa kadarki adımlarda
+  dis[v,t] ≥ 0    V2G deşarj gücü, ≤ max_discharge_kw (V2G açık ve araç uygunsa)
   bch[t], bdis[t] ≥ 0   batarya şarj/deşarj, ≤ power_kw; ikili değişken z[t] aynı adımda ikisini yasaklar
   imp[t], exp[t] ≥ 0    şebekeden alım / şebekeye veriş
-  soc[t]          batarya SOC'si
+  soc[t]          batarya SOC'si (ve V2G araçları için araç SOC'leri)
 
 Kısıtlar
   güç dengesi     imp − exp = yük + Σ(ch − dis) + bch − bdis − PV
@@ -23,13 +24,14 @@ Kısıtlar
   site            imp ≤ site_limit_kw (+ cezalı gevşeme: sınır asla gerçekten çözümsüz kalmasın)
   batarya         soc[t+1] = soc[t] + (η·bch − bdis/η)·dt/kapasite;  soc_min ≤ soc ≤ soc_max;
                   gün sonu SOC ≥ bess.soc_initial (gün başı = gün sonu; aksi hâlde batarya "bedava" boşalırdı)
-  araç hedefi     Σ ch·dt·η_ev ≥ ihtiyaç (yetmezse cezalı gevşeme)
+  araç hedefi     Σ ch·dt·η_ev ≥ ihtiyaç (V2G'li araçta SOC yörüngesi ve ayrılışta hedef SOC; yetmezse cezalı gevşeme)
+  V2G             araç SOC'si `v2g_soc_floor` altına inmez (minimum SOC garantisi); aynı adımda hem şarj hem deşarj yok (ikili)
 
 Amaç (TL)
   Σ fiyat·imp·dt − satış_fiyatı·exp·dt                  enerji maliyeti
   + peak_weight·tepe                                      tepe alımı küçük bir ağırlıkla bastırır (aynı maliyetli çözümler
                                                            arasında düz olanı seçtirir; projenin ana sorusu tepe yükü)
-  + bess_wear·Σ bdis·dt                                   gereksiz çevrimi önleyen aşınma bedeli
+  + bess_wear·Σ bdis·dt + v2g_wear·Σ dis·dt               gereksiz çevrimi önleyen aşınma bedeli
   − early_bias·Σ depolanan_enerji[t]                      eşit maliyetli seçeneklerde enerjiyi erken depolatır
   + vehicle_early·Σ t·ch[v,t]·dt                          eşit maliyetli adımlarda aracı erken şarj ettirir
   + ceza·(karşılanamayan araç enerjisi, site aşımı, gün sonu SOC açığı)
@@ -58,9 +60,13 @@ def _pulp():
 
 
 class MilpEMS:
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, v2g: bool = False):
         self.pulp = _pulp()
         e = cfg["ems"]
+        self.v2g = v2g
+        self.v2g_eff = e["v2g_efficiency"]
+        self.v2g_wear = e["v2g_wear_tl_per_kwh"]
+        self.v2g_floor = e["v2g_soc_floor"]
         self.bess = cfg["bess"]
         self.safety_cfg = e
         self.ev_eff = cfg["station"].get("charge_efficiency", 1.0)
@@ -73,7 +79,7 @@ class MilpEMS:
         self.vehicle_early = e["milp_vehicle_early_tl_per_kwh_step"]
         self.time_limit_s = e["milp_time_limit_s"]
         self.gap = e["milp_gap"]
-        self._fallback = RuleBasedEMS(cfg, use_bess=True)
+        self._fallback = RuleBasedEMS(cfg, use_bess=True, v2g=v2g)
         self._forecast: pd.DataFrame | None = None
         self._peak_so_far = 0.0
         self.fallbacks = 0
@@ -149,6 +155,7 @@ class MilpEMS:
         # --- araçlar ---
         ev_net = [[] for _ in range(H)]                                # t -> araç net güç ifadeleri (şarj − deşarj)
         ch_first: dict[str, object] = {}
+        dis_first: dict[str, object] = {}
         for k, v in enumerate(inp.vehicles):
             n = self._vehicle_steps(inp, v, H)
             if n == 0:
@@ -156,9 +163,25 @@ class MilpEMS:
             ch = [Var(f"ch_{k}_{t}", 0, max(v.max_charge_kw, 0.0)) for t in range(n)]
             unmet = Var(f"unmet_{k}", 0)
             obj.append(self.unmet_penalty * unmet)
-            prob += self.ev_eff * dt * pl.lpSum(ch) + unmet >= v.energy_needed_kwh
-            for t in range(n):
-                ev_net[t].append(ch[t])
+            if self.v2g and v.max_discharge_kw > _EPS:
+                dis = [Var(f"dis_{k}_{t}", 0, v.max_discharge_kw) for t in range(n)]
+                w = [Var(f"w_{k}_{t}", cat="Binary") for t in range(n)]
+                floor = min(self.v2g_floor, v.soc)                     # zaten tabanın altındaki araçtan deşarj istenmez
+                s_ = [Var(f"vs_{k}_{t}", floor, max(v.target_soc, v.soc)) for t in range(n + 1)]
+                prob += s_[0] == v.soc
+                for t in range(n):
+                    prob += ch[t] <= v.max_charge_kw * w[t]
+                    prob += dis[t] <= v.max_discharge_kw * (1 - w[t])
+                    prob += s_[t + 1] == s_[t] + (self.ev_eff * ch[t] - dis[t] / self.v2g_eff) * dt / v.battery_kwh
+                prob += s_[n] + unmet / v.battery_kwh >= v.target_soc    # ayrılışta hedef SOC
+                obj.append(self.v2g_wear * dt * pl.lpSum(dis))
+                dis_first[v.charger_id] = dis[0]
+                for t in range(n):
+                    ev_net[t].append(ch[t] - dis[t])
+            else:
+                prob += self.ev_eff * dt * pl.lpSum(ch) + unmet >= v.energy_needed_kwh
+                for t in range(n):
+                    ev_net[t].append(ch[t])
             obj.append(self.vehicle_early * dt * pl.lpSum(t * ch[t] for t in range(n)))   # eşitlikte erken şarj
             ch_first[v.charger_id] = ch[0]
 
@@ -187,10 +210,10 @@ class MilpEMS:
             v_ = x.value() or 0.0
             return 0.0 if abs(v_) < _CLEAN else float(v_)
 
-        ev = {cid: val(x) for cid, x in ch_first.items()}
+        ev = {cid: val(x) - (val(dis_first[cid]) if cid in dis_first else 0.0) for cid, x in ch_first.items()}
         bess = val(bch[0]) - val(bdis[0])
         # çözücü gürültüsü yüzünden sınır dışına taşan değerleri kırp
         for v in inp.vehicles:
             if v.charger_id in ev:
-                ev[v.charger_id] = min(max(ev[v.charger_id], 0.0), v.max_charge_kw)
+                ev[v.charger_id] = min(max(ev[v.charger_id], -v.max_discharge_kw), v.max_charge_kw)
         return Decision(ev_kw={v.charger_id: ev.get(v.charger_id, 0.0) for v in inp.vehicles}, bess_kw=bess)

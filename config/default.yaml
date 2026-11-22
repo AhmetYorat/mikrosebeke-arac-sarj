@@ -81,6 +81,7 @@ ems:
   milp_unmet_penalty_tl_per_kwh: 30     # karşılanamayan araç enerjisi cezası (fiyatlardan çok büyük: hedef SOC neredeyse sert kısıt)
   milp_site_penalty_tl_per_kw: 100      # site sınırı aşımı cezası (kısıt hiçbir koşulda çözümsüz bırakmasın)
   bess_wear_tl_per_kwh: 0.05            # batarya deşarj başına aşınma bedeli (anlamsız çevrimi engeller)
+  v2g_wear_tl_per_kwh: 0.5              # V2G deşarjının araç bataryasına aşınma bedeli (varsayım; duyarlılık için bkz. docs/ems.md)
   milp_early_bias_tl_per_kwh_step: 0.001   # eşit maliyetli seçenekler arasında enerjiyi erken depolat (kayan ufukta 'sonra yaparım' tuzağı)
   milp_vehicle_early_tl_per_kwh_step: 0.002   # aynı: araç şarjını eşit maliyetli adımların erkenine çek
   milp_time_limit_s: 10                 # tek çözüm için zaman sınırı; aşılırsa kural tabanlı EMS'e düşülür

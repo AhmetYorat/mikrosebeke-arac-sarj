@@ -191,3 +191,84 @@ def test_loop_without_v2g_capable_vehicles_changes_nothing(cfg, index):
     a, _ = _loop(cfg, index, RuleBasedEMS(cfg, use_bess=True), v2g_share=0.0)
     b, _ = _loop(cfg, index, RuleBasedEMS(cfg, use_bess=True, v2g=True), v2g_share=0.0)
     pd.testing.assert_frame_equal(a.steps[["ev_kw", "bess_kw", "grid_kw"]], b.steps[["ev_kw", "bess_kw", "grid_kw"]])
+
+
+# --- MILP + V2G (Senaryo 6) ---
+
+try:
+    import pulp
+    _CBC = pulp.PULP_CBC_CMD(msg=False).available()
+except ImportError:      # pragma: no cover
+    _CBC = False
+needs_cbc = pytest.mark.skipif(not _CBC, reason="PuLP/CBC yok (pip install 'pulp>=2.9,<4')")
+
+import copy  # noqa: E402
+
+from microgrid.ems.milp import MilpEMS  # noqa: E402
+
+
+def _small_cfg(cfg):
+    """Küçük batarya + 6 araç: MILP'in V2G'ye ihtiyaç duyduğu, hızlı çalışan bir ayar."""
+    c = copy.deepcopy(cfg)
+    c["vehicles"]["count"] = 6
+    c["bess"].update(capacity_kwh=20, power_kw=20)
+    return c
+
+
+@needs_cbc
+def test_milp_v2g_respects_soc_floor_in_unit(cfg, index):
+    e = _prepared(MilpEMS(cfg, v2g=True), cfg, index)
+    d = e.decide(_inp(cfg, index, "19:00", [_veh(soc=0.30)], base=40.0, bess_soc=0.1))
+    assert d.ev_kw["AC1"] >= -1e-6                        # taban SOC'de deşarj yok
+    assert e.fallbacks == 0
+
+
+@needs_cbc
+def test_milp_without_v2g_never_discharges_vehicles(cfg, index):
+    e = _prepared(MilpEMS(cfg, v2g=False), cfg, index)
+    d = e.decide(_inp(cfg, index, "19:00", [_veh(soc=0.7)], base=40.0, bess_soc=0.1))
+    assert d.ev_kw["AC1"] >= 0.0
+
+
+@needs_cbc
+def test_loop_milp_v2g_uses_vehicles_and_keeps_guarantees(cfg, index):
+    c = _small_cfg(cfg)
+    inputs = mock_inputs(c, index)
+
+    def go(v2g):
+        st = V2GMockStation(c, index[0])
+        e = MilpEMS(c, v2g=v2g)
+        return run(c, inputs, st, e, BESS(c)), st, e
+
+    r5, st5, e5 = go(False)
+    r6, st6, e6 = go(True)
+    s5, s6 = r5.steps, r6.steps
+    assert e6.fallbacks == 0
+    assert (s6.ev_kw < -0.1).any()                                       # araçlar gerçekten şebekeye verdi
+    assert compute(s6, c)["maliyet_tl"] <= compute(s5, c)["maliyet_tl"] + 1e-6
+    # hedef SOC garantisi: V2G yüzünden hiçbir araç daha düşük SOC ile ayrılmadı
+    soc5 = {v["id"]: v["soc"] for v in st5.vehicles}
+    soc6 = {v["id"]: v["soc"] for v in st6.vehicles}
+    assert all(soc6[k] >= soc5[k] - 0.02 for k in soc5)
+    # minimum SOC garantisi
+    for _, grp in r6.station.groupby("vehicle_id"):
+        if (grp.power_kw < -1e-6).any():
+            first = grp.index[grp.power_kw < -1e-6][0]
+            assert grp.loc[first:, "soc"].min() >= 0.3 - 0.02
+    # fiziksel tutarlılık ve sınırlar
+    assert ((s6.base_load_kw + s6.ev_kw + s6.bess_kw - s6.pv_kw) - s6.grid_kw).abs().max() < 1e-9
+    assert (s6.ev_kw <= c["station"]["power_limit_kw"] + 1e-4).all()
+    assert s6.grid_kw.max() <= c["grid"]["site_import_limit_kw"] + 1e-4
+    assert s6.bess_soc.iloc[-1] >= c["bess"]["soc_initial"] - 0.02
+
+
+@needs_cbc
+def test_loop_milp_v2g_equals_plain_milp_without_capable_vehicles(cfg, index):
+    c = _small_cfg(cfg)
+    inputs = mock_inputs(c, index)
+
+    def go(v2g):
+        return run(c, inputs, V2GMockStation(c, index[0], v2g_share=0.0), MilpEMS(c, v2g=v2g), BESS(c)).steps
+
+    a, b = go(False), go(True)
+    assert compute(a, c)["maliyet_tl"] == pytest.approx(compute(b, c)["maliyet_tl"], rel=1e-4)

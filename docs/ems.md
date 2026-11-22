@@ -86,3 +86,14 @@ varsa ona göre planlanır (YM-2).
 
 **Test istasyonu:** gerçek istasyon (YM-2) main'e girene kadar `sim.mocks.V2GMockStation` kullanılır: araçların %40'ı V2G'ye uygun,
 11 kW deşarj, taban SOC 0.30. `v2g_share=0` ile aynı istasyonda V2G'siz karşılaştırma yapılır.
+
+**MILP (`MilpEMS(cfg, v2g=True)`):** V2G'ye uygun araç için `dis[v,t]` ve araç SOC yörüngesi eklenir.
+
+| | |
+| --- | --- |
+| Minimum SOC | araç SOC'si `ems.v2g_soc_floor` altına inemez (SOC değişkeninin alt sınırı) |
+| Ayrılışta hedef SOC | ayrılış adımında SOC ≥ hedef (cezalı gevşeme) |
+| Aynı adımda şarj + deşarj yok | ikili değişken |
+| Aşınma bedeli | `ems.v2g_wear_tl_per_kwh` (0.5 TL/kWh, varsayım) deşarj enerjisine eklenir; anlamsız çevrimi ve küçük kazançlı deşarjı eler |
+
+Kural tabanlı V2G aşınma bedelini bilmez; MILP bilir. İkisinin sonucu bu yüzden aynı değil.
