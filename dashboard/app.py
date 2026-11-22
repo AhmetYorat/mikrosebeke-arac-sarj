@@ -5,6 +5,7 @@ Veri dosyaları yoksa (python -m microgrid.data çalıştırılmadıysa) sahte g
 """
 import json
 
+import pandas as pd
 import streamlit as st
 
 import charts
@@ -14,6 +15,7 @@ from microgrid.kpi import compare, compute
 from microgrid.sim.loop import time_index
 from microgrid.sim.scenarios import SCENARIOS, apply_overrides, simulate
 from microgrid.sim.setup import SAHTE, TEMSILI_GUNLER, load_inputs, with_start
+from microgrid.simulink_io import critical_moment, list_outputs, outputs_dir, status_table, summarize
 
 st.set_page_config(page_title="Mikro-Şebeke + EV Şarj İstasyonu", layout="wide")
 base = load_config()
@@ -93,8 +95,8 @@ card(row2[2], "Site sınırı aşımı", "site_siniri_asim_adim", ".0f", "adım"
 card(row2[3], "En düşük gerilim", "min_gerilim_pu", ".3f", "p.u.", inverse=False)
 
 # ---- Sekmeler ----
-tab_flow, tab_station, tab_grid, tab_cmp, tab_data = st.tabs(
-    ["Güç akışları", "Şarj istasyonu", "Şebeke", "Senaryo karşılaştırması", "Veri"])
+tab_flow, tab_station, tab_grid, tab_cmp, tab_dyn, tab_data = st.tabs(
+    ["Güç akışları", "Şarj istasyonu", "Şebeke", "Senaryo karşılaştırması", "Dinamik (Simulink)", "Veri"])
 
 with tab_flow:
     st.plotly_chart(charts.power_flows(steps, cfg), width="stretch")
@@ -126,6 +128,38 @@ with tab_cmp:
              "min_gerilim_pu", "max_kablo_yuklenme_pct", "max_trafo_yuklenme_pct"]
     st.dataframe(table.loc[shown].map(lambda v: f"{v:.2f}" if isinstance(v, float) else v), width="stretch")
     st.download_button("KPI tablosunu indir (CSV)", table.to_csv().encode("utf-8"), file_name=f"kpi_{day}.csv")
+
+with tab_dyn:
+    band = tuple(cfg["simulink"]["freq_band_pu"])
+    runs = list_outputs(outputs_dir(cfg))
+
+    st.subheader("Simülasyon → Simulink: günün kritik anı")
+    st.caption("Seçili senaryoda şebekeyi en çok zorlayan adım. EM ekibi D2 (toplu araç bağlanması) gibi "
+               "dinamik senaryoları bu değerlerle başlatır; böylece iki katman aynı anı anlatır.")
+    cm = critical_moment(steps, cfg)
+    st.dataframe(pd.DataFrame([cm]).round(3), hide_index=True, width="stretch")
+
+    st.subheader("Dinamik senaryolar (EM-1, EM-2)")
+    st.dataframe(status_table(runs), hide_index=True, width="stretch")
+    for r in runs:
+        if r.error:
+            st.error(r.error, icon="🚫")
+
+    ok = [r for r in runs if r.error is None]
+    if not ok:
+        st.info(f"`{cfg['simulink']['outputs_dir']}/` altında henüz CSV yok. Biçim: docs/arayuz-sozlesmesi.md, bölüm 5. "
+                "Dosya adı örneği: `D1_yuk_basamagi.csv`. GitHub'a web arayüzünden yükleme adımları: docs/calisma-duzeni.md.")
+    else:
+        i = st.selectbox("Dosya", range(len(ok)), format_func=lambda j: f"{ok[j].code} · {ok[j].title}")
+        choice = ok[i]
+        sm = summarize(choice.data, band)
+        c = st.columns(4)
+        c[0].metric("En düşük frekans", f"{sm['f_min_hz']:.3f} Hz", help=f"t = {sm['f_min_t_s']:.2f} s")
+        c[1].metric("Bant dışında kalma", f"{sm['bant_disi_s']:.2f} s",
+                    help="Banda son dönüş: " + (f"{sm['banda_donus_t_s']:.2f} s" if sm["banda_donus_t_s"] else "hiç çıkmadı"))
+        c[2].metric("En düşük PCC gerilimi", f"{sm['v_min_pu']:.3f} p.u.")
+        c[3].metric("En yüksek şebeke gücü", f"{sm['p_grid_max_kw']:.0f} kW")
+        st.plotly_chart(charts.simulink_dynamics(choice.data, band), width="stretch")
 
 with tab_data:
     st.dataframe(steps, width="stretch")
