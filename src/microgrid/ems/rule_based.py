@@ -38,7 +38,15 @@ Gece hedef SOC'si başlangıç SOC'sine (0.5) eşittir: temsili gün tekrar eden
 gün sonunda batarya gün başındaki seviyeye döner; aksi hâlde gün sonunda depoda kalan enerji maliyetsiz
 görünür ve senaryolar adil karşılaştırılamazdı.
 
-V2G (Senaryo 6) kuralları Hafta 8'de eklenir.
+V2G (`v2g=True`, Senaryo 6), batarya kararından sonra kalan net yükü araçlardan karşılar:
+
+  e. Puantta (veya site sınırı aşılacaksa, tarifeden bağımsız) V2G'ye uygun ve o adım şarj olmayan araçlar
+     net yükü paylaşarak karşılar. Bir aracın verebileceği enerji iki şeyle sınırlıdır:
+       - taban SOC: araç `ems.v2g_soc_floor`'un (0.30) altına indirilmez (minimum SOC garantisi);
+       - ayrılışta hedef SOC: deşarjdan sonra kalan ucuz adımlarda (ünite gücünün `safety` kadarıyla) hedefe
+         yeniden dolabilmeli (ayrılışta hedef SOC garantisi).
+     Enerji kalan puant adımlarına eşit paylaştırılır. Batarya önce, araçlar kalan yük için devreye girer
+     (batarya aşınması araç bataryasından ucuz).
 """
 from __future__ import annotations
 
@@ -53,11 +61,14 @@ _EPS = 1e-9
 
 
 class RuleBasedEMS:
-    def __init__(self, cfg: dict, use_bess: bool = False):
+    def __init__(self, cfg: dict, use_bess: bool = False, v2g: bool = False):
         e = cfg["ems"]
         self.soc_floor: float = e["soc_floor"]
         self.safety: float = e["safety"]
         self.use_bess = use_bess
+        self.v2g = v2g
+        self.v2g_floor: float = e["v2g_soc_floor"]
+        self.v2g_eff: float = e["v2g_efficiency"]          # V2G deşarjında araç bataryasından çekilen = güç·dt / verim
         self.bess = cfg["bess"]
         self.night_target_soc: float = e["bess_night_target_soc"]
         self._price: np.ndarray | None = None
@@ -71,16 +82,20 @@ class RuleBasedEMS:
     def decide(self, inp: EmsInputs) -> Decision:
         ev = self._add_pv_surplus(inp, self._charge_plan(inp))
         if not self.use_bess:
-            return Decision(ev_kw=self._limit(inp, ev))
-
-        # a. Site sınırı için gereken deşarj, araç sınırlaması için gereken payı da büyütür
-        ev = self._limit(inp, ev, site=False)
-        site_duty_kw = min(self.bess["power_kw"], max(0.0, inp.base_load_kw + sum(ev.values()) - inp.pv_kw - inp.site_limit_kw))
-        ev = self._limit(inp, ev, bess_kw=-site_duty_kw)
-        net = inp.base_load_kw + sum(ev.values()) - inp.pv_kw
-        bess = self._bess_power(inp, net)
-        if site_duty_kw > 0 and -bess < site_duty_kw:
-            bess = -site_duty_kw
+            ev, bess = self._limit(inp, ev), 0.0
+        else:
+            # a. Site sınırı için gereken deşarj, araç sınırlaması için gereken payı da büyütür
+            ev = self._limit(inp, ev, site=False)
+            site_duty_kw = min(
+                self.bess["power_kw"],
+                max(0.0, inp.base_load_kw + sum(ev.values()) - inp.pv_kw - inp.site_limit_kw))
+            ev = self._limit(inp, ev, bess_kw=-site_duty_kw)
+            net = inp.base_load_kw + sum(ev.values()) - inp.pv_kw
+            bess = self._bess_power(inp, net)
+            if site_duty_kw > 0 and -bess < site_duty_kw:
+                bess = -site_duty_kw
+        if self.v2g:
+            ev = self._v2g(inp, ev, inp.base_load_kw + sum(ev.values()) + bess - inp.pv_kw)
         return Decision(ev_kw=ev, bess_kw=bess)
 
     # --- araç şarjı ---
@@ -200,3 +215,42 @@ class RuleBasedEMS:
             p = need_kwh / (n * dt * eta)
             return max(0.0, min(p, power, room / (dt * eta), inp.site_limit_kw - net_kw))
         return 0.0
+
+    # --- V2G ---
+
+    def _v2g_usable_kwh(self, inp: EmsInputs, v: VehicleRequest) -> float:
+        """Aracın bu adımdan sonra bataryasından çekilebilecek enerji (araç bataryası tarafı, kWh)."""
+        above_floor = max(0.0, (v.soc - self.v2g_floor) * v.battery_kwh)
+        prices = self._window_prices(inp, v)
+        if len(prices) == 0:
+            return 0.0
+        lo = float(self._price.min()) if self._price is not None else float(prices.min())
+        cheap_steps = int((prices <= lo + _EPS).sum())
+        refill_kwh = cheap_steps * v.max_charge_kw * self.safety * inp.ctx.dt_h * self.v2g_eff
+        return max(0.0, min(above_floor, refill_kwh - v.energy_needed_kwh))
+
+    def _v2g(self, inp: EmsInputs, ev: dict[str, float], net_kw: float) -> dict[str, float]:
+        """e. Kalan net yükü V2G'ye uygun araçlardan karşıla (puantta ya da site sınırı için)."""
+        if self._price is None:
+            return ev
+        hi = float(self._price.max())
+        in_puant = hi - float(self._price.min()) > _EPS and inp.price_tl_per_kwh >= hi - _EPS
+        target_kw = max(net_kw if in_puant else 0.0, net_kw - inp.site_limit_kw)
+        if target_kw <= _EPS:
+            return ev
+        dt = inp.ctx.dt_h
+        n_puant = max(1, self._remaining_steps(inp, hi, lambda a, x: a >= x - _EPS)) if in_puant else 1
+        caps: dict[str, float] = {}
+        for v in inp.vehicles:
+            if v.max_discharge_kw <= _EPS or ev.get(v.charger_id, 0.0) > _EPS:
+                continue                                   # V2G'siz araç ya da bu adım şarj olan araç
+            share_kw = self._v2g_usable_kwh(inp, v) * self.v2g_eff / (n_puant * dt)
+            caps[v.charger_id] = min(v.max_discharge_kw, share_kw)
+        total = sum(caps.values())
+        if total <= _EPS:
+            return ev
+        scale = min(1.0, target_kw / total)
+        out = dict(ev)
+        for cid, c in caps.items():
+            out[cid] = -c * scale
+        return out

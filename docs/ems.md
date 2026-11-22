@@ -7,7 +7,7 @@ Kod: `src/microgrid/ems/` · Parametreler: `config/default.yaml → bess:` ve `e
 | `bess.py` | Batarya modeli: SOC, verim, güç ve SOC sınırları | S4–S6 |
 | `pv_first.py` | EMS v0: kontrolsüz şarj, PV → (batarya) → şebeke | S2 |
 | `rule_based.py` | Kural tabanlı akıllı şarj: SOC eşikleri + tarife; `use_bess=True` ile batarya kuralları | S3, S4 |
-| `milp.py` | Kayan ufuklu MILP (PuLP): maliyet en aza, sınırlar ve hedef SOC kısıt | S5 |
+| `milp.py` | Kayan ufuklu MILP (PuLP): maliyet en aza, sınırlar ve hedef SOC kısıt | S5, S6 |
 
 ## Batarya (`bess.py`)
 
@@ -68,3 +68,21 @@ engellemek için enerjiyi erken depolatan ve aracı erken şarj ettiren çok kü
 
 **PuLP sürümü:** `requirements.txt` PuLP'u `<4` ile sınırlıyor. PuLP 4 CBC'yi artık içermiyor (`pip install pulp[cbc]` ve ayrı çözücü
 gerekiyor) ve `LpVariable(...)`, `LpStatus` gibi eski API'yi kaldırdı.
+
+## V2G (Senaryo 6)
+
+İstasyon `VehicleRequest.max_discharge_kw > 0` bildirdiği araçlar V2G'ye uygundur. EMS negatif `ev_kw` ile aracı deşarj ettirir.
+
+**Kural tabanlı (`RuleBasedEMS(cfg, ..., v2g=True)`, kural e):** puantta (ya da site sınırı aşılacaksa tarifeden bağımsız) batarya
+yetmeyen net yükü V2G'li araçlar paylaşır. Önce batarya, çünkü aşınması araç bataryasından ucuz. İki garanti:
+
+| Garanti | Nasıl |
+| --- | --- |
+| Minimum SOC | Araç `ems.v2g_soc_floor` (0.30) altına indirilmez |
+| Ayrılışta hedef SOC | Deşarjdan sonra kalan ucuz adımlarda (ünite gücünün %80'iyle) hedefe yeniden dolabilecek kadar deşarj edilir |
+
+Deşarj kayıplıdır: şebekeye verilen enerji = araç bataryasından çekilen × `ems.v2g_efficiency` (0.95). Şarj ise `station.charge_efficiency`
+varsa ona göre planlanır (YM-2).
+
+**Test istasyonu:** gerçek istasyon (YM-2) main'e girene kadar `sim.mocks.V2GMockStation` kullanılır: araçların %40'ı V2G'ye uygun,
+11 kW deşarj, taban SOC 0.30. `v2g_share=0` ile aynı istasyonda V2G'siz karşılaştırma yapılır.

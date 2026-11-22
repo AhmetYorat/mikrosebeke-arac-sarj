@@ -72,6 +72,9 @@ ems:
   soc_floor: 0.30         # bu SOC'nin altındaki araç tarifeye bakmadan hemen taban SOC'ye kadar şarj edilir
   safety: 0.80            # planlamada ünite gücünün yalnızca bu kadarına güvenilir (ünite paylaşımı, CC-CV)
   bess_night_target_soc: 0.5   # gece ucuz dilimde batarya bu SOC'ye kadar şebekeden şarj olur (= bess.soc_initial: gün başı = gün sonu)
+  # V2G (Senaryo 6). EMS aracı bu SOC'nin altına indirmez; ayrılışta hedef SOC'ye dönebileceğinden emin olmadan da deşarj etmez.
+  v2g_soc_floor: 0.30
+  v2g_efficiency: 0.95                  # V2G deşarjı: araç bataryasından çekilen enerji = şebekeye verilen / verim (YM-2 ile aynı olmalı)
   # Optimizasyonlu EMS (src/microgrid/ems/milp.py, Senaryo 5). Her adımda bağlı araçlarla gün sonuna kadar MILP çözer.
   export_price_tl_per_kwh: 0.0          # şebekeye satış fiyatı; açık soru 2 (şimdilik satış ücretsiz, KPI ile aynı)
   milp_peak_weight_tl_per_kw: 0.2       # tepe şebeke alımına küçük ağırlık: eşit maliyetli çözümler arasında düz olanı seçtirir
