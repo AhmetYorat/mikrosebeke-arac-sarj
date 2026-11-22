@@ -1,0 +1,104 @@
+"""Dashboard grafikleri (YM-4). Yalnızca döngünün sonuç tablolarını okur (docs/arayuz-sozlesmesi.md, bölüm 4).
+
+Grafik fonksiyonları Streamlit'ten bağımsız: aynı figürler rapor ve sunum için de kullanılabilir.
+"""
+from __future__ import annotations
+
+import pandas as pd
+import plotly.graph_objects as go
+
+# Seriler her grafikte aynı renkte olsun (rapor ve sunumda da)
+COLORS = {
+    "pv_kw": "#E0A100",          # güneş
+    "base_load_kw": "#7A8793",   # sabit yük
+    "ev_kw": "#D1495B",          # şarj istasyonu: projenin odağı, en belirgin renk
+    "bess_kw": "#2E86AB",        # batarya
+    "grid_kw": "#2A2A2A",        # şebeke
+}
+LABELS = {
+    "pv_kw": "PV üretimi",
+    "base_load_kw": "Sabit yük (site)",
+    "ev_kw": "Şarj istasyonu",
+    "bess_kw": "Batarya (+ şarj / − deşarj)",
+    "grid_kw": "Şebekeden alım (+) / veriş (−)",
+}
+PUANT = (17, 22)   # EPDK puant dilimi; grafiklerde gölgelenir
+
+
+def _puant_bands(fig: go.Figure, index: pd.DatetimeIndex) -> None:
+    """Puant saatlerini (17-22) gölgeler: tepe yükün pahalı saate denk geldiği görünsün."""
+    for day in pd.Series(index.normalize().unique()):
+        x0, x1 = day + pd.Timedelta(hours=PUANT[0]), day + pd.Timedelta(hours=PUANT[1])
+        if x1 < index[0] or x0 > index[-1]:
+            continue
+        fig.add_vrect(x0=max(x0, index[0]), x1=min(x1, index[-1]), fillcolor="#D1495B", opacity=0.07,
+                      line_width=0, annotation_text="puant", annotation_position="top left")
+
+
+def power_flows(steps: pd.DataFrame, cfg: dict) -> go.Figure:
+    fig = go.Figure()
+    for col in ["pv_kw", "base_load_kw", "ev_kw", "bess_kw", "grid_kw"]:
+        fig.add_trace(go.Scatter(
+            x=steps.index, y=steps[col], name=LABELS[col], mode="lines",
+            line=dict(color=COLORS[col], width=3.2 if col in ("ev_kw", "grid_kw") else 1.8,
+                      dash="dot" if col == "bess_kw" else None),
+            hovertemplate="%{y:.1f} kW",
+        ))
+    fig.add_hline(y=cfg["grid"]["site_import_limit_kw"], line_dash="dash", line_color="#2A2A2A",
+                  annotation_text=f"site sınırı {cfg['grid']['site_import_limit_kw']} kW", annotation_position="top right")
+    fig.add_hline(y=cfg["station"]["power_limit_kw"], line_dash="dot", line_color=COLORS["ev_kw"],
+                  annotation_text=f"istasyon sınırı {cfg['station']['power_limit_kw']} kW",
+                  annotation_position="bottom right")
+    _puant_bands(fig, steps.index)
+    fig.update_layout(yaxis_title="kW", hovermode="x unified", height=440, margin=dict(t=30, b=10),
+                      legend=dict(orientation="h", y=-0.18))
+    return fig
+
+
+def charger_heatmap(station: pd.DataFrame, cfg: dict) -> go.Figure:
+    """Ünite × zaman: her hücre o ünitenin o adımda çektiği güç. Boş hücre = ünite boş."""
+    chargers = [f"{c['kind']}{i + 1}" for c in cfg["station"]["chargers"] for i in range(c["count"])]
+    if station.empty:
+        pivot = pd.DataFrame(index=chargers)
+    else:
+        pivot = station.pivot_table(index="charger_id", columns="timestamp", values="power_kw", aggfunc="sum")
+        pivot = pivot.reindex(chargers)
+    fig = go.Figure(go.Heatmap(
+        z=pivot.to_numpy(), x=pivot.columns, y=pivot.index, colorscale="Reds", zmin=0,
+        colorbar=dict(title="kW"), hovertemplate="%{y} %{x|%H:%M}: %{z:.1f} kW<extra></extra>",
+    ))
+    fig.update_layout(height=60 + 28 * len(chargers), margin=dict(t=10, b=10),
+                      yaxis=dict(autorange="reversed", title="ünite"))
+    return fig
+
+
+def vehicle_soc(station: pd.DataFrame, cfg: dict) -> go.Figure:
+    """Her aracın SOC'si bağlı kaldığı süre boyunca; kesikli çizgi hedef SOC."""
+    fig = go.Figure()
+    for vid, g in station.groupby("vehicle_id"):
+        fig.add_trace(go.Scatter(x=g["timestamp"], y=g["soc"], name=vid, mode="lines",
+                                 line=dict(width=1.4), hovertemplate=f"{vid}: %{{y:.0%}}<extra></extra>"))
+    fig.add_hline(y=cfg["vehicles"]["target_soc"], line_dash="dash", annotation_text="hedef SOC")
+    fig.update_layout(yaxis=dict(title="SOC", tickformat=".0%", range=[0, 1]), height=320,
+                      margin=dict(t=10, b=10), showlegend=False)
+    return fig
+
+
+def grid_quality(steps: pd.DataFrame, cfg: dict) -> go.Figure:
+    """Yük akışı sonuçları: en düşük gerilim ve kablo/trafo yüklenmesi (iki eksen)."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=steps.index, y=steps["min_vm_pu"], name="En düşük gerilim (p.u.)",
+                             line=dict(color="#2E86AB", width=2.4)))
+    fig.add_hline(y=cfg["grid"]["voltage_min_pu"], line_dash="dash", line_color="#2E86AB",
+                  annotation_text=f"alt sınır {cfg['grid']['voltage_min_pu']} p.u.")
+    fig.add_trace(go.Scatter(x=steps.index, y=steps["max_line_loading_pct"], name="En yüklü kablo (%)",
+                             yaxis="y2", line=dict(color="#D1495B")))
+    fig.add_trace(go.Scatter(x=steps.index, y=steps["trafo_loading_pct"], name="Trafo (%)",
+                             yaxis="y2", line=dict(color="#7A8793", dash="dot")))
+    _puant_bands(fig, steps.index)
+    fig.update_layout(
+        yaxis=dict(title="gerilim (p.u.)"),
+        yaxis2=dict(title="yüklenme (%)", overlaying="y", side="right", rangemode="tozero"),
+        height=380, hovermode="x unified", margin=dict(t=30, b=10), legend=dict(orientation="h", y=-0.2),
+    )
+    return fig
