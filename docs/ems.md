@@ -1,6 +1,6 @@
 # EMS ve optimizasyon (YM-3)
 
-Kod: `src/microgrid/ems/` · Parametreler: `config/default.yaml → bess:` ve `ems:` · Arayüz: [arayuz-sozlesmesi.md](arayuz-sozlesmesi.md) bölüm 3.
+Kod: `src/microgrid/ems/` · Sonuçlar: [raporlar/hafta9-ym3-ems-optimizasyon.md](raporlar/hafta9-ym3-ems-optimizasyon.md) · Parametreler: `config/default.yaml → bess:` ve `ems:` · Arayüz: [arayuz-sozlesmesi.md](arayuz-sozlesmesi.md) bölüm 3.
 
 | Modül | Ne yapar | Senaryo |
 | --- | --- | --- |
