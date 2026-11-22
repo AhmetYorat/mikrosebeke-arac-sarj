@@ -24,12 +24,12 @@ def _want_kw(v: VehicleRequest, dt_h: float, eff: float) -> float:
     return min(v.max_charge_kw, v.energy_needed_kwh / (dt_h * eff))
 
 
-def uncontrolled(vehicles: list[VehicleRequest], dt_h: float, eff: float = 1.0) -> dict[str, float]:
-    """Kontrolsüz şarj: her araç geldiği an çekebildiği en yüksek güçle. eff: station.charge_efficiency."""
+def uncontrolled(vehicles: list[VehicleRequest], dt_h: float, *, eff: float) -> dict[str, float]:
+    """Kontrolsüz şarj: her araç geldiği an çekebildiği en yüksek güçle. eff: station.charge_efficiency (zorunlu)."""
     return {v.charger_id: _want_kw(v, dt_h, eff) for v in vehicles}
 
 
-def by_departure(vehicles: list[VehicleRequest], budget_kw: float, dt_h: float, eff: float = 1.0) -> dict[str, float]:
+def by_departure(vehicles: list[VehicleRequest], budget_kw: float, dt_h: float, *, eff: float) -> dict[str, float]:
     """Güç bütçesini ayrılışı en yakın araçtan başlayarak dağıtır; eşit ayrılışta daha çok enerji isteyen önce.
 
     Toplam hiçbir zaman bütçeyi, araç başına güç hiçbir zaman aracın sınırını aşmaz. Bütçe yeterliyse sonuç

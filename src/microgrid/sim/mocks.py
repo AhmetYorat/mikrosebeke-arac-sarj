@@ -121,6 +121,8 @@ class CheapHoursEMS:
 
     def __init__(self, cfg: dict):
         self.cfg = cfg
+        # energy_needed_kwh batarya tarafıdır; şebekeden 1/η katı çekilmeli (YM-2 istasyonu verimi uygular)
+        self.eff = cfg["station"].get("charge_efficiency", 1.0)
         prices = [p["price_tl_per_kwh"] for p in cfg["tariff"]["periods"]]
         self.cheapest = min(prices)
 
@@ -147,7 +149,7 @@ class CheapHoursEMS:
 
         ev = {}
         for v in inp.vehicles:
-            need = v.energy_needed_kwh
+            need = v.energy_needed_kwh / self.eff   # şebeke tarafı
             cap = min(v.max_charge_kw, need / dt)
             if cheap_now:
                 left = self._cheap_hours_until(now, v.departure, dt)
@@ -160,7 +162,7 @@ class CheapHoursEMS:
         for v in inp.vehicles:
             if surplus <= 0:
                 break
-            room = min(v.max_charge_kw, v.energy_needed_kwh / dt) - ev[v.charger_id]
+            room = min(v.max_charge_kw, v.energy_needed_kwh / (dt * self.eff)) - ev[v.charger_id]
             extra = min(room, surplus)
             ev[v.charger_id] += extra
             surplus -= extra

@@ -52,3 +52,10 @@ def test_charge_updates_soc_with_efficiency():
     assert ev.soc == pytest.approx(0.3 + 22 * 0.25 * 0.95 / 60)
     assert ev.energy_in_kwh == pytest.approx(5.5)
     assert ev.energy_needed_kwh == pytest.approx((0.8 - ev.soc) * 60)
+
+
+def test_reached_target_tolerates_tiny_undershoot_in_energy():
+    # Hedefe 1,5e-6 SOC (0,09 Wh) kala araç dolu sayılmalı; yoksa üniteyi bütün gece tutar (final review #1).
+    assert make_ev(soc_arrival=0.8 - 1.5e-6).reached_target
+    assert make_ev(soc_arrival=0.8 - 0.009 / 60).reached_target          # 9 Wh eksik
+    assert not make_ev(soc_arrival=0.8 - 0.02 / 60).reached_target       # 20 Wh eksik

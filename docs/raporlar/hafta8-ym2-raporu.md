@@ -12,7 +12,8 @@ Rapor: 3 Aralık 2026.
   2. **Ayrılışta hedef SOC:** bu adımda verilen enerji ayrılışa kadar geri doldurulabilir olmalı. Bu adımdan sonra
      kalan süre t, ünitedeki tam şarj gücü p, verim η, batarya B ise:
      `t · p · η ≥ (hedef − SOC) · B + E_çıkan`  ⇒  `E_çıkan ≤ t · p · η − (hedef − SOC) · B`.
-     Adımın deşarj sınırı `min(ünite/OBC gücü, E_çıkan · η / dt)`.
+     Adımın deşarj sınırı `min(ünite/OBC gücü, E_çıkan · η / dt)`. Hedef CC-CV eşiğinin (0,8) üstündeyse p olarak
+     hedefteki CV gücü alınır (yavaşlayan son kısım için güvenli alt sınır).
 - Hedefe ulaşmış ama hâlâ deşarj edebilecek araç da EMS'e listelenir (V2G için aday).
 - `planned_sessions()`'ta `max_discharge_kw` artık V2G açıkken dolu (MILP için).
 - Testler: V2G kapalı/uygun olmayan araç, ünite ve min SOC sınırı, ayrılışa yakın deşarj yok, enerji korunumu
@@ -29,7 +30,9 @@ Rapor: 3 Aralık 2026.
 ## YM-3 için not
 
 Senaryo 6, `config={"station.v2g_enabled": True}` override'ı ve YM-3'ün V2G EMS'iyle eklenir. EMS, aracın
-`max_discharge_kw`'sini aşan bir istek gönderse bile istasyon garantileri kendisi uygular.
+`max_discharge_kw`'sini aşan bir istek gönderse bile istasyon onu bu sınıra kırpar. Garanti "hedefe hâlâ
+yetişilebilir" garantisidir: deşarjdan sonra aracı ayrılışa kadar tam güçle şarj etmek EMS'in işidir.
+İstasyon/site güç sınırları hesaba katılmaz; çok araç aynı anda geri şarj edilecekse EMS bunu planlamalı.
 
 ## Gelecek hafta (Hafta 9)
 

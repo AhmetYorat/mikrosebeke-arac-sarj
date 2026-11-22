@@ -88,7 +88,10 @@ class ChargingStation:
         return out
 
     def _max_discharge(self, u: ChargingUnit, ctx: StepContext) -> float:
-        return u.max_discharge_kw(ctx.timestamp, ctx.dt_h, self.v2g_min_soc, self.eff) if self.v2g else 0.0
+        if not self.v2g:
+            return 0.0
+        return u.max_discharge_kw(ctx.timestamp, ctx.dt_h, self.v2g_min_soc, self.eff,
+                                  self.cv_threshold, self.cv_min_fraction)
 
     def apply(self, ctx: StepContext, ev_kw: dict[str, float]) -> dict[str, float]:
         """Bağlı her ünite için uygulanan güç. Boş ya da bilinmeyen ünite anahtarları yok sayılır."""

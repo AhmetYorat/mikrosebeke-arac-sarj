@@ -37,11 +37,11 @@ Kullanıcı memnuniyeti (sahte girdi, Haziran):
 
 | | S2 kontrolsüz | S3 akıllı (geçici, YM-4) | S2, nöbetleşe kapalı |
 | --- | --- | --- | --- |
-| Hedefe ulaşma oranı | 1,00 | 0,55 | 0,50 |
-| Hizmet alamayan araç | 0 | 3 | 5 |
-| Ortalama bekleme (sa) | 0,2 | 5,2 | 5,7 |
-| Araç şarjı (kWh) | 590 | 453 | 369 |
-| İstasyon tepe (kW) | 210 | 110 | 177 |
+| Hedefe ulaşma oranı | 1,00 | 0,80 | 0,50 |
+| Hizmet alamayan araç | 0 | 0 | 5 |
+| Ortalama bekleme (sa) | 0,2 | 4,7 | 5,7 |
+| Araç şarjı (kWh) | 590 | 482 | 369 |
+| İstasyon tepe (kW) | 210 | 150 | 177 |
 
 ## Karşılaşılan sorunlar
 
@@ -49,8 +49,8 @@ Kullanıcı memnuniyeti (sahte girdi, Haziran):
   Hafta 4–7 boyunca sahte istasyonla çalıştı. Bu PR'la kapanıyor.
 - **S3 ünite paylaşımıyla çakışıyor:** Geçici akıllı şarj (CheapHoursEMS) her aracın şarjını bütün geceye yaydığı
   için hiçbir araç sabaha kadar dolmuyor, ünite boşalmıyor, sıradakiler hedefe yetişemiyor (tablo, orta sütun).
-  İstasyon doğru davranıyor; EMS sırayı hesaba katmalı. İlgili test (`test_s3_…`) bu yüzden gerekçesiyle
-  `xfail` işaretlendi; YM-3/YM-4 kararı bekleniyor.
+  İstasyon doğru davranıyor; EMS sırayı hesaba katmalı. İlgili testin yalnızca "S3 de aynı enerjiyi verir"
+  kontrolü gerekçesiyle `xfail` işaretlendi (sınır ve tepe kontrolleri geçiyor); YM-3/YM-4 kararı bekleniyor.
 
 - **Kontrolsüz EMS'te verim hatası (düzeltildi):** `UncontrolledEMS` aracın batarya tarafı ihtiyacını (`need/dt`)
   istiyordu; istasyon %5 verim kaybını düşünce her adım ihtiyacın %5'i kalıyor, araç hedefe asimptotik yaklaşıp

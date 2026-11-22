@@ -8,8 +8,11 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-# SOC karşılaştırmalarında tek tolerans: 0.7999999 hedefi 0.8 sayılır (kayan nokta hatası).
+# SOC karşılaştırmalarında tolerans: 0.7999999 hedefi 0.8 sayılır (kayan nokta hatası).
 SOC_TOL = 1e-6
+# Hedefe bundan az enerji (kWh, batarya tarafı) kalan araç dolu sayılır. Hedefin birkaç Wh altında kalan araç
+# (ör. verimi hesaba katmayan bir EMS yüzünden) aksi hâlde üniteyi bütün gece tutar ve nöbetleşe şarj çalışmaz.
+REACHED_KWH = 0.01
 
 
 def cc_cv_limit(soc: float, p_nom_kw: float, threshold: float, min_fraction: float) -> float:
@@ -56,7 +59,7 @@ class ElectricVehicle:
 
     @property
     def reached_target(self) -> bool:
-        return self.soc >= self.target_soc - SOC_TOL
+        return self.soc >= self.target_soc - SOC_TOL or self.energy_needed_kwh < REACHED_KWH
 
     def max_charge_kw(self, kind: str, unit_kw: float, threshold: float, min_fraction: float) -> float:
         """Bu üniteden şu an çekebileceği en yüksek güç: ünite ve araç donanımının küçüğü, sonra CC-CV."""
@@ -69,7 +72,7 @@ class ElectricVehicle:
         return min(self.max_ac_kw if kind.upper() == "AC" else self.max_dc_kw, unit_kw)
 
     def max_discharge_kw(self, ts: pd.Timestamp, dt_h: float, unit_kw: float, p_charge_kw: float,
-                         min_soc: float, eff: float) -> float:
+                         min_soc: float, eff: float, threshold: float, min_fraction: float) -> float:
         """V2G'de bu adımda şebekeye verebileceği en yüksek güç (şebeke tarafı, pozitif).
 
         İki garanti:
@@ -77,10 +80,16 @@ class ElectricVehicle:
           2. Verilen enerji ayrılışa kadar geri doldurulabilir: bu adımdan sonra kalan sürede tam güçle şarj
              edilirse araç yine hedef SOC'ye ulaşır. Koşul  t_sonra · p_şarj · η ≥ (hedef − soc) · B + e_çıkan,
              e_çıkan için çözülünce  e_çıkan ≤ t_sonra · p_şarj · η − (hedef − soc) · B.
+             Hedef CC-CV eşiğinin üstündeyse p_şarj olarak hedefe giden yoldaki en düşük güç (hedefteki CC-CV gücü)
+             alınır; böylece CV bölgesindeki yavaşlama da hesaba katılır (güvenli tarafta kalan alt sınır).
+        Bu garanti, EMS deşarjdan sonra aracı tam güçle şarj ederse geçerlidir: istasyon hedefe *yetişilebilir*
+        kalmasını sağlar, EMS'in şarj etmesini değil. Paylaşılan istasyon/site sınırları burada hesaba katılmaz.
         V2G'ye uygun olmayan araç için 0. (station.v2g_enabled kapalıysa istasyon bu metodu hiç çağırmaz.)
         """
         if not self.v2g_capable:
             return 0.0
+        p_charge_kw = cc_cv_limit(min(self.target_soc, 1.0 - SOC_TOL), p_charge_kw, threshold, min_fraction) \
+            if self.target_soc > threshold else p_charge_kw
         t_after = (self.departure - ts).total_seconds() / 3600 - dt_h
         e_floor = (self.soc - min_soc) * self.battery_kwh
         e_slack = t_after * p_charge_kw * eff - max(0.0, self.target_soc - self.soc) * self.battery_kwh

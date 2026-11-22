@@ -137,8 +137,10 @@ apply(ctx, ev_kw: dict[charger_id, kW]) -> dict[charger_id, kW]
   Kullanıcı memnuniyeti KPI'ı buradan hesaplanır. Sahte istasyonla çalışan senaryolarda boş tablodur.
 - **Kullanıcı memnuniyeti:** `microgrid.station.satisfaction(sessions)` → `arac_sayisi`, `hedefe_ulasma_orani`,
   `hizmet_alamayan`, `ortalama_eksik_kwh`, `ortalama_bekleme_saat`.
-- **Güç dağıtım yardımcıları** (EMS `decide` içinde çağırabilir): `uncontrolled(vehicles, dt_h)`,
-  `by_departure(vehicles, budget_kw, dt_h)` (bütçeyi ayrılışı en yakın araçtan başlayarak dağıtır).
+- **Güç dağıtım yardımcıları** (EMS `decide` içinde çağırabilir): `uncontrolled(vehicles, dt_h, eff=...)`,
+  `by_departure(vehicles, budget_kw, dt_h, eff=...)` (bütçeyi ayrılışı en yakın araçtan başlayarak dağıtır).
+  `eff` zorunludur (`station.charge_efficiency`): `energy_needed_kwh` batarya tarafıdır, şebekeden 1/η katı çekilir.
+- **Dolu sayılma:** hedefe 0,01 kWh'ten az kalan araç dolu sayılır (nöbetleşe şarj ve `reached_target`).
 
 **İstasyon → optimizasyon (Senaryo 5, Hafta 7).** MILP günü `prepare`'de planlar; araçları gün başında
 `station.planned_sessions()` ile alır (kusursuz geliş bilgisi varsayımı). Araç başına bir satır:

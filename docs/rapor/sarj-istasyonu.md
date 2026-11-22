@@ -79,8 +79,11 @@ V2G açıkken (`station.v2g_enabled`, Senaryo 6) V2G destekli araç her adımda 
 - Verilen enerji ayrılışa kadar geri doldurulabilmelidir. Bu adımdan sonra kalan süre t, tam şarj gücü p,
   verim η, batarya B için t · p · η ≥ (hedef − SOC) · B + E_çıkan olmalı, yani E_çıkan ≤ t · p · η − (hedef − SOC) · B.
 
-Bu iki koşul istasyonda uygulandığı için EMS ne isterse istesin araç ayrılışta hedefine ulaşır. Test: 17–22 arası
-mümkün olan en fazla deşarjı isteyen bir EMS ile 20 araçta 58,8 kWh şebekeye verildi, bütün araçlar hedefe ulaştı.
+Hedef CC-CV eşiğinin üstündeyse p olarak hedefteki (en düşük) CV gücü alınır; böylece yavaşlayan son kısım da
+hesaba katılır. İstasyon bu iki koşulu uygular, yani deşarjdan sonra hedef her zaman *yetişilebilir* kalır; aracı
+sonra tam güçle şarj etmek EMS'in işidir (deşarjdan sonra şarj etmeyen EMS'te araç hedefi kaçırır). İstasyon/site
+güç sınırları bu hesapta yoktur. Test: 17–22 arası mümkün olan en fazla deşarjı, sonra tam şarjı isteyen bir EMS ile
+20 araçta 58,8 kWh şebekeye verildi, bütün araçlar hedefe ulaştı; hedef 0,9–1,0 için de ayrı test var.
 
 ## 7. Sonuçlar (sahte girdi, Haziran)
 
@@ -105,14 +108,14 @@ mümkün olan en fazla deşarjı isteyen bir EMS ile 20 araçta 58,8 kWh şebeke
 
 | | S2 kontrolsüz | S3 akıllı (geçici) | S2, nöbetleşe kapalı |
 | --- | --- | --- | --- |
-| Hedefe ulaşma oranı | 1,00 | 0,55 | 0,50 |
-| Hizmet alamayan araç | 0 | 3 | 5 |
-| Ortalama eksik enerji (kWh) | 0,0 | 6,5 | 10,5 |
-| Ortalama bekleme (sa) | 0,2 | 5,2 | 5,7 |
-| İstasyon tepe (kW) | 210 | 110 | 177 |
+| Hedefe ulaşma oranı | 1,00 | 0,80 | 0,50 |
+| Hizmet alamayan araç | 0 | 0 | 5 |
+| Ortalama eksik enerji (kWh) | 0,0 | 5,2 | 10,5 |
+| Ortalama bekleme (sa) | 0,2 | 4,7 | 5,7 |
+| İstasyon tepe (kW) | 210 | 150 | 177 |
 
 Kontrolsüz şarj şebekeye kötü (tepe 210 kW), kullanıcıya iyidir (herkes dolar). Şarjı bütün geceye yayan akıllı
-şarj tepeyi 110 kW'a indiriyor ama üniteleri sabaha kadar kilitlediği için sıradaki araçlar hedefe yetişemiyor.
+şarj tepeyi 150 kW'a (istasyon sınırı) indiriyor ama üniteleri uzun süre tuttuğu için araçların %20'si hedefe yetişemiyor.
 Ünite sayısı sınırlıyken iyi bir EMS hem tepeyi hem üniteyi yönetmeli. YM-3'ün EMS sonuçları gelince bu tablo
 S3–S6 ile güncellenecek.
 

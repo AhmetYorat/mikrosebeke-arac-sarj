@@ -39,7 +39,7 @@ Görsel: `docs/raporlar/hafta5-ym2-tepe-yuk.png`.
 
 - Kontrolsüz: herkes dolar ama tepe yüksek. Geceye yayan akıllı şarj: tepe düşer ama sıradakiler yetişemez
 - V2G: SOC 0,3'ün altına inmez; verilen enerji ayrılışa kadar geri doldurulabilir olmalı
-- Sonuç: EMS ne isterse istesin araç sabah hedefinde
+- Sonuç: deşarjdan sonra hedef her zaman yetişilebilir; EMS tam güçle geri şarj ederse araç sabah hedefinde
 
 Görsel: memnuniyet tablosu (`docs/rapor/ym2-memnuniyet.md`), V2G koşulu formülü.
 

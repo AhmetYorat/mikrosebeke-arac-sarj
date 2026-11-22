@@ -108,3 +108,27 @@ def test_energy_conservation_with_v2g(cfg):
 def test_planned_sessions_report_discharge(cfg):
     plan = ChargingStation(cfg, time_index(cfg)[0]).planned_sessions()
     assert (plan.max_discharge_kw > 0).any() and (plan.max_discharge_kw == 0).any()
+
+
+class PerfectV2G:
+    """İzin verilen her deşarjı alır, izin kalmayınca tam güçle şarj eder."""
+
+    def prepare(self, forecast):
+        pass
+
+    def decide(self, inp):
+        return Decision(ev_kw={v.charger_id: (-v.max_discharge_kw if v.max_discharge_kw > 0 else v.max_charge_kw)
+                               for v in inp.vehicles})
+
+
+@pytest.mark.parametrize("target,hours", [(0.95, 6), (1.0, 10), (0.9, 5)])
+def test_v2g_guarantee_holds_above_cv_threshold(cfg, target, hours):
+    # Final review #3: CC-CV azalması hesaba katılmazsa hedef > 0,8'de araç hedefi kaçırıyordu.
+    start = time_index(cfg)[0] + pd.Timedelta(hours=6)
+    v = ev(start, hours=hours, soc=0.6, target=target)
+    s = ChargingStation(cfg, time_index(cfg)[0])
+    s.vehicles = [v]
+    index = time_index(cfg)
+    run(cfg, mock_inputs(cfg, index), s, PerfectV2G(), SimpleBattery(cfg))
+    assert v.energy_out_kwh > 0
+    assert v.reached_target

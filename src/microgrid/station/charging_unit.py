@@ -36,9 +36,10 @@ class ChargingUnit:
             return 0.0
         return self.vehicle.max_charge_kw(self.kind, self.power_kw, threshold, min_fraction)
 
-    def max_discharge_kw(self, ts, dt_h: float, min_soc: float, eff: float) -> float:
+    def max_discharge_kw(self, ts, dt_h: float, min_soc: float, eff: float,
+                         threshold: float, min_fraction: float) -> float:
         """Bağlı aracın V2G üst sınırı (boşsa 0). Ayrılışa kadar bu ünitede tam güçle (CC) yeniden şarj varsayılır."""
         if self.vehicle is None:
             return 0.0
         hw = self.vehicle.hw_kw(self.kind, self.power_kw)
-        return self.vehicle.max_discharge_kw(ts, dt_h, hw, hw, min_soc, eff)
+        return self.vehicle.max_discharge_kw(ts, dt_h, hw, hw, min_soc, eff, threshold, min_fraction)
