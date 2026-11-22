@@ -125,3 +125,28 @@ def scenario_comparison(results: dict, cfg: dict) -> go.Figure:
     _puant_bands(fig, first.index)
     fig.update_layout(height=560, hovermode="x unified", margin=dict(t=40, b=10), legend=dict(orientation="h", y=-0.1))
     return fig
+
+
+def simulink_dynamics(df: pd.DataFrame, band: tuple[float, float]) -> go.Figure:
+    """Simulink çıktısı: frekans (bant ile), PCC gerilimi ve güçler; x ekseni saniye."""
+    from plotly.subplots import make_subplots
+
+    power_cols = {"p_grid_kw": ("Şebeke", COLORS["grid_kw"]), "p_ev_ac_kw": ("İstasyon AC", COLORS["ev_kw"]),
+                  "p_ev_dc_kw": ("İstasyon DC", "#8E2C3A"), "p_bess_kw": ("Batarya", COLORS["bess_kw"]),
+                  "p_pv_kw": ("PV", COLORS["pv_kw"]), "p_load_kw": ("Sabit yük", COLORS["base_load_kw"])}
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+                        subplot_titles=("Frekans (Hz)", "PCC gerilimi (p.u.)", "Güçler (kW)"))
+    t = df.index
+    fig.add_trace(go.Scatter(x=t, y=df["freq_pu"] * 50, name="Frekans", line=dict(color="#2A2A2A", width=2),
+                             hovertemplate="%{y:.3f} Hz"), row=1, col=1)
+    fig.add_hrect(y0=band[0] * 50, y1=band[1] * 50, fillcolor="#3B8C4A", opacity=0.12, line_width=0, row=1, col=1,
+                  annotation_text=f"bant {band[0] * 50:.2f}–{band[1] * 50:.2f} Hz", annotation_position="top left")
+    fig.add_trace(go.Scatter(x=t, y=df["v_pcc_pu"], name="PCC gerilimi", line=dict(color="#2E86AB", width=2),
+                             hovertemplate="%{y:.3f} p.u."), row=2, col=1)
+    for col, (label, color) in power_cols.items():
+        if col in df.columns:
+            fig.add_trace(go.Scatter(x=t, y=df[col], name=label, line=dict(color=color, width=1.8),
+                                     hovertemplate="%{y:.1f} kW"), row=3, col=1)
+    fig.update_xaxes(title_text="zaman (s)", row=3, col=1)
+    fig.update_layout(height=720, hovermode="x unified", margin=dict(t=40, b=10), legend=dict(orientation="h", y=-0.08))
+    return fig

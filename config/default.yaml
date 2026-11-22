@@ -90,6 +90,11 @@ grid:
       ev: station
       bess: station                    # batarya istasyonun yanında, akşam pikini oradan karşılar
 
+simulink:
+  # Simulink çıktıları (EM-2). Biçim: docs/arayuz-sozlesmesi.md, bölüm 5. Dashboard'un "Dinamik" sekmesi buradan okur.
+  outputs_dir: simulink/outputs
+  freq_band_pu: [0.999, 1.001]   # MathWorks V2G örneğindeki frekans bandı (50 Hz = 1.0 p.u.)
+
 tariff:
   # EPDK tarife tablosu, 4 Nisan 2026, vergiler hariç (YM-1, resmî tablodan doğrulandı).
   # AG tek terim, mesken (8 kWh/gün üstü), çok zamanlı: fiyat = enerji bedeli + dağıtım bedeli (242,4900 kr/kWh).
