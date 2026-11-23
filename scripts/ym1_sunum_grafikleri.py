@@ -13,13 +13,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from microgrid.analysis import Scenario, run_year, scenario_cfg, sweep
+from microgrid.analysis import run_year, scenario_config, sweep
 from microgrid.config import REPO_ROOT, load_config
 from microgrid.data import seasons
 from microgrid.data.inputs import build_inputs
 from microgrid.kpi import annualize, compute
 from microgrid.sim.loop import run
 from microgrid.sim.mocks import MockStation, SimpleBattery, UncontrolledEMS
+from microgrid.sim.scenarios import Scenario
 
 plt.rcParams.update({"font.size": 15, "axes.titlesize": 19, "axes.labelsize": 15, "legend.fontsize": 13,
                      "axes.spines.top": False, "axes.spines.right": False})
@@ -66,7 +67,8 @@ ax.legend(loc="upper right")
 save(fig, "ym1-1-sorun-aralik-gunu.png")
 
 # 2. İstasyonun etkisi: yıllık maliyet ve tepe yük (S1 vs S2)
-s1_k, _ = run_year(scenario_cfg(cfg, Scenario("S1", config={"vehicles.count": 0})), Scenario("S1"))
+s1 = Scenario("S1", config={"vehicles.count": 0})
+s1_k, _ = run_year(scenario_config(cfg, s1), s1)
 s2_k, _ = run_year(cfg, Scenario("S2"))
 fig, axes = plt.subplots(1, 2, figsize=SIZE)
 names = ["Araç yok", "Kontrolsüz şarj\n(20 araç)"]
@@ -100,7 +102,7 @@ ax.legend(loc="upper left")
 save(fig, "ym1-3-arac-sayisi.png")
 
 # 4. Yöntem: temsili günler (yıllık maliyet hatası, tam yıla göre)
-c1 = scenario_cfg(cfg, Scenario("S1"), {"vehicles.count": 0})
+c1 = scenario_config(cfg, Scenario("S1"), {"vehicles.count": 0})
 full_cfg = copy.deepcopy(c1)
 full_cfg["inputs"]["mode"] = "actual"
 year = cfg["loads"]["year"]
@@ -109,7 +111,7 @@ full = compute(run(full_cfg, build_inputs(full_cfg, idx), MockStation(full_cfg, 
                    SimpleBattery(full_cfg)).steps, full_cfg)
 errs = {}
 for n, label in [(1, "8 gün\nmevsim × gün tipi"), (2, "16 gün\n+ güneşli/bulutlu"), (3, "24 gün\n+ bulutlu/orta/güneşli")]:
-    k, _ = run_year(scenario_cfg(c1, Scenario("S1"), {"inputs.sky_classes": n}), Scenario("S1"))
+    k, _ = run_year(scenario_config(c1, Scenario("S1"), {"inputs.sky_classes": n}), Scenario("S1"))
     errs[label] = 100 * (float(k["maliyet_tl"]) / float(full["maliyet_tl"]) - 1)
 fig, ax = plt.subplots(figsize=SIZE)
 bars = ax.bar(list(errs), [abs(v) for v in errs.values()], color=["tab:gray", "tab:olive", "tab:green"], width=0.55)

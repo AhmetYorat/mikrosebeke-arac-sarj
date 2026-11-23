@@ -14,11 +14,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from microgrid.analysis import Scenario, sweep
+from microgrid.analysis import sweep
 from microgrid.config import REPO_ROOT, load_config
 from microgrid.data.tariff import period_at
 from microgrid.interfaces import Decision
 from microgrid.sim.mocks import UncontrolledEMS
+from microgrid.sim.scenarios import Scenario
 
 
 class BatteryRuleEMS(UncontrolledEMS):

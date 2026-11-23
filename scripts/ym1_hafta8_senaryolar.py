@@ -1,28 +1,20 @@
 """Hafta 8 (YM-1): senaryolar arası karşılaştırma tablosu (yıllık, 24 temsili gün, pandapower ile).
 
-Şu an çalışan: S1 (araç yok), S2 (kontrolsüz şarj). S3–S6 için YM-2 istasyonu ve YM-3 EMS'i gerekiyor;
-modüller ana koda girince aşağıdaki BEKLENEN listesindeki satırı SCENARIOS'a taşımak yeterli.
+Senaryolar YM-4'ün listesinden gelir (sim/scenarios.py SCENARIOS; dashboard da aynı listeyi gösterir).
+YM-2 istasyonu ve YM-3 EMS'i oraya eklendikçe tablo kendiliğinden genişler; BEKLENEN listesi yalnızca henüz
+olmayan sütunları "bekleniyor" diye göstermek için. Geçici (sahte modülle çalışan) senaryolar dipnotla işaretlenir.
 
 Önce veri:  python -m microgrid.data
 Sonra:      python scripts/ym1_hafta8_senaryolar.py
 Çıktı: results/senaryo_tablosu.csv, docs/raporlar/hafta8-ym1-senaryolar.md (rapora girecek tablo)
 """
-from microgrid.analysis import Scenario, scenario_table
+from microgrid.analysis import scenario_table
 from microgrid.config import REPO_ROOT, load_config
 from microgrid.grid import PandapowerGrid
+from microgrid.sim.scenarios import SCENARIOS
 
-SCENARIOS = [
-    Scenario("S1 araç yok", config={"vehicles.count": 0}),
-    Scenario("S2 kontrolsüz"),
-]
-
-# Modüller gelince (örnek; sınıf adları YM-2/YM-3'ün koduna göre değişir):
-#   from microgrid.station import ChargingStation
-#   from microgrid.ems import RuleBasedEMS, MilpEMS
-#   Scenario("S3 akıllı şarj", ems=lambda c: RuleBasedEMS(c), station=lambda c, t: ChargingStation(c, t)),
-#   Scenario("S4 akıllı şarj + batarya", ...), Scenario("S5 optimizasyon", ems=lambda c: MilpEMS(c), ...),
-#   Scenario("S6 V2G", ...)
-BEKLENEN = ["S3 akıllı şarj (kural tabanlı)", "S4 akıllı şarj + batarya", "S5 optimizasyonlu EMS", "S6 V2G"]
+BEKLENEN = ["S4 akıllı şarj + batarya", "S5 optimizasyonlu EMS", "S6 V2G"]
+BEKLENEN = [b for b in BEKLENEN if not any(name.startswith(b[:2]) for name in SCENARIOS)]
 
 ROWS = {  # rapordaki tablo: (KPI, başlık, biçim)
     "maliyet_tl": ("Yıllık maliyet", "{:,.0f} TL"),
@@ -45,17 +37,21 @@ def fmt(value, pattern):
         return "—"
     if v != v:   # NaN
         return "—"
-    text = pattern.replace("%{:.0%}", "%{:.0f}").format(v * 100) if "%}" in pattern else pattern.format(v)
-    return text.replace(",", "§").replace(".", ",").replace("§", ".")   # Türkçe: 1.234,5
+    if "%}" in pattern:
+        pattern, v = pattern.replace("%{:.0%}", "%{:.0f}"), v * 100
+    spec = pattern[pattern.index("{"): pattern.index("}") + 1]
+    number = spec.format(v).replace(",", "§").replace(".", ",").replace("§", ".")   # Türkçe: 1.234,5
+    return pattern.replace(spec, number)   # birimdeki noktalar ("p.u.") değişmesin
 
 
 cfg = load_config()
-table = scenario_table(SCENARIOS, cfg, grid=PandapowerGrid(cfg))
+scenarios = list(SCENARIOS.values())
+table = scenario_table(scenarios, cfg, grid=PandapowerGrid(cfg))
 out_csv = REPO_ROOT / "results" / "senaryo_tablosu.csv"
 out_csv.parent.mkdir(exist_ok=True)
 table.to_csv(out_csv)
 
-names = [s.name for s in SCENARIOS]
+names = [s.name for s in scenarios]
 header = "| KPI | " + " | ".join(names + BEKLENEN) + " |"
 lines = [header, "| --- |" + " --- |" * (len(names) + len(BEKLENEN))]
 for kpi, (title, pattern) in ROWS.items():
@@ -69,8 +65,9 @@ out_md.write_text(
     "Bandırma, 24 temsili gün (4 mevsim × 2 gün tipi × 3 gökyüzü) → yıl; pandapower yük akışıyla. "
     "Üreten betik: `scripts/ym1_hafta8_senaryolar.py`.\n\n"
     f"{md}\n\n"
-    "S1–S2 sahte istasyonla (20 araç, 10 ünite). S3–S6 YM-2 istasyon modeli ve YM-3 EMS'i ana koda girince "
-    "aynı betikle doldurulacak.\n",
+    + "".join(f"- {s.name}: {s.description}" + (" **Geçici:** sahte modülle çalışıyor.\n" if s.temporary and "GEÇİCİ" not in s.description else "\n")
+              for s in scenarios)
+    + "\n\"bekleniyor\" sütunları YM-2 istasyon modeli ve YM-3 EMS'i senaryo listesine eklenince aynı betikle dolacak.\n",
     encoding="utf-8",
 )
 print(md)

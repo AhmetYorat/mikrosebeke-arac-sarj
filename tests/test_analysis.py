@@ -1,12 +1,13 @@
 """Hafta 8–9 (YM-1): senaryo tablosu, duyarlılık ve döngüsel batarya. data/processed/ yoksa atlanır."""
 import pytest
 
-from microgrid.analysis import Scenario, run_day, scenario_cfg, scenario_table, set_path, sweep
+from microgrid.analysis import run_day, scenario_config, scenario_table, sweep
 from microgrid.config import load_config
 from microgrid.data import loads as load_profiles
 from microgrid.data import pvgis, seasons
 from microgrid.interfaces import Decision
 from microgrid.sim.mocks import SimpleBattery, UncontrolledEMS
+from microgrid.sim.scenarios import SCENARIOS, Scenario
 
 
 @pytest.fixture(scope="module")
@@ -18,12 +19,19 @@ def cfg():
     return cfg
 
 
-def test_set_path_and_scenario_cfg_do_not_touch_original(cfg):
-    c = scenario_cfg(cfg, Scenario("x", config={"vehicles.count": 0}), {"pv.installed_kw": 50})
+def test_scenario_config_does_not_touch_original(cfg):
+    c = scenario_config(cfg, Scenario("x", config={"vehicles.count": 0}), {"pv.installed_kw": 50})
     assert c["vehicles"]["count"] == 0 and c["pv"]["installed_kw"] == 50
     assert cfg["vehicles"]["count"] != 0 and cfg["pv"]["installed_kw"] != 50
     with pytest.raises(KeyError):
-        set_path(c, "pv.yok_boyle_bir_alan", 1)
+        scenario_config(cfg, Scenario("x"), {"pv.yok_boyle_bir_alan": 1})
+
+
+def test_shared_scenario_list_runs_yearly(cfg):
+    # Dashboard'un senaryo listesi (YM-4) yıllık tabloda da çalışıyor
+    t = scenario_table(list(SCENARIOS.values()), cfg)
+    assert list(t.columns[:-1]) == list(SCENARIOS)
+    assert (t.loc["maliyet_tl", t.columns[:-1]].astype(float) > 0).all()
 
 
 def test_scenario_table_shows_station_impact(cfg):
@@ -63,5 +71,5 @@ def test_cyclic_battery_gives_no_free_energy(cfg):
 
 
 def test_zero_capacity_battery(cfg):
-    c = scenario_cfg(cfg, Scenario("x"), {"bess.capacity_kwh": 0})
+    c = scenario_config(cfg, Scenario("x"), {"bess.capacity_kwh": 0})
     assert SimpleBattery(c).apply(-50.0, 0.25) == 0.0
