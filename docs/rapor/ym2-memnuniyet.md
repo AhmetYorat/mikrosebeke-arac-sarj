@@ -1,4 +1,4 @@
-Girdi: sahte, Haziran temsili günü
+Girdi: gercek, Haziran temsili günü
 
 | index | S2 Kontrolsüz şarj | S3 Akıllı şarj (geçici) | S2, nöbetleşe kapalı |
 | --- | --- | --- | --- |
