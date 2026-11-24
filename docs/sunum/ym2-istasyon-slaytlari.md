@@ -1,7 +1,7 @@
 # Sunum · Şarj istasyonu slaytları (YM-2)
 
-6 slayt, ~4 dakika. Görseller `docs/rapor/` ve `docs/raporlar/` altında; sunumdan önce gerçek veriyle yeniden
-üretilmeli (`python -m microgrid.data`, sonra `scripts/ym2_hafta5_tepe_yuk.py` ve `scripts/ym2_rapor_grafikleri.py`).
+6 slayt, ~4 dakika. Görseller `docs/rapor/` ve `docs/raporlar/` altında, gerçek veriyle üretildi
+(`python -m microgrid.data`, sonra `scripts/ym2_hafta5_tepe_yuk.py` ve `scripts/ym2_rapor_grafikleri.py`).
 
 ## 1. Projenin merkezi: şarj istasyonu
 

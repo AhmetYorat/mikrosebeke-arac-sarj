@@ -27,13 +27,14 @@ Rapor: 26 Kasım 2026. Hafta 3–7 görevleri bu hafta topluca tamamlandı ve te
 
 ![Araç sayısı – tepe yük](hafta5-ym2-tepe-yuk.png)
 
-**Uyarı:** grafik ve aşağıdaki tablo **sahte girdiyle** (çan eğrisi PV, sentetik yük) üretildi; PVGIS'e bu ortamdan
-erişilemedi. Gerçek veriyle: `python -m microgrid.data` ardından `python scripts/ym2_hafta5_tepe_yuk.py`.
+Girdi: gerçek veri (PVGIS 2023 Bandırma, BDEW yük profilleri, EPDK tarifesi), Haziran ve Aralık temsili günleri.
 
 Kontrolsüz şarjda (S2, 20 araç) istasyon tepe yükü ~210 kW (19:45): 150 kW istasyon sınırını aşıyor; o anda
 8 AC + 2 DC ünitenin hepsi şarj ediyor, bağlı araçların ortalama SOC'si 0,53. EM ekibi D2'yi bu değerlerle kurabilir.
+Şebeke tepe alımı Haziran'da 232 kW, Aralık'ta 246 kW; 180 kW site sınırı Haziran'da 5, Aralık'ta 6 adım aşılıyor
+(Aralık'ta sabit yük daha yüksek). İstasyon yükü iki günde aynı: araçların geliş dağılımı mevsime bağlı değil.
 
-Kullanıcı memnuniyeti (sahte girdi, Haziran):
+Kullanıcı memnuniyeti (gerçek veri, Haziran):
 
 | | S2 kontrolsüz | S3 akıllı (geçici, YM-4) | S2, nöbetleşe kapalı |
 | --- | --- | --- | --- |

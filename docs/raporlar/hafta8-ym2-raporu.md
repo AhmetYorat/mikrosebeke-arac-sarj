@@ -20,7 +20,9 @@ Rapor: 3 Aralık 2026.
   (şarj·η − deşarj/η = SOC artışı × B), "17–22 arası en fazla deşarj, sonra tam şarj" isteyen açgözlü bir EMS ile bile
   bütün araçların hedefe ulaşması.
 
-## Kanıt (sahte girdi, Haziran; açgözlü test EMS'i)
+## Kanıt (test EMS'i: 17–22 arası en fazla deşarj, sonra tam şarj)
+
+İstasyon tarafı sonuçlar PV/yük girdisinden bağımsızdır (EMS'in kararı yalnızca saate bağlı).
 
 | Araç sayısı | V2G destekli | Puantta şebekeye verilen (kWh) | En yüksek V2G gücü (kW) | Hedefe ulaşma |
 | --- | --- | --- | --- | --- |

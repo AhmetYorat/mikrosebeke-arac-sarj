@@ -16,7 +16,7 @@ Rapor: 10 Aralık 2026. 9 Aralık kod dondurmadan önce istasyon kodu tamamland�
 
 ## Açık işler
 
-- Sayılar sahte girdiyle; gerçek veriyle iki betik yeniden çalıştırılıp rapor tabloları güncellenmeli.
+- ~~Sayılar sahte girdiyle~~ Gerçek veriyle yeniden üretildi (PVGIS 2023 Bandırma); rapor tabloları güncel.
 - YM-3'ün S3–S6 sonuçları gelince memnuniyet tablosuna eklenecek.
 
 ## Gelecek hafta (Hafta 10)

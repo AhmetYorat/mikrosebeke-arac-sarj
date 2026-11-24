@@ -1,8 +1,8 @@
 # Şarj istasyonu modeli (YM-2)
 
 > Taslak (Hafta 9). Sayıların hepsi `scripts/ym2_hafta5_tepe_yuk.py` ve `scripts/ym2_rapor_grafikleri.py`
-> çıktısıdır. **Şu anki sayılar sahte girdiyle (çan eğrisi PV, sentetik yük) üretildi.** Gerçek veriyle yeniden
-> üretmek için: `python -m microgrid.data`, ardından iki betik. Rapora girmeden önce tablolar yenilenmeli.
+> çıktısıdır; girdi gerçek veridir (PVGIS 2023 Bandırma, BDEW yük profilleri, EPDK tarifesi). Yeniden üretmek için:
+> `python -m microgrid.data`, ardından iki betik.
 
 ## 1. İstasyonun tanımı
 
@@ -85,26 +85,33 @@ sonra tam güçle şarj etmek EMS'in işidir (deşarjdan sonra şarj etmeyen EMS
 güç sınırları bu hesapta yoktur. Test: 17–22 arası mümkün olan en fazla deşarjı, sonra tam şarjı isteyen bir EMS ile
 20 araçta 58,8 kWh şebekeye verildi, bütün araçlar hedefe ulaştı; hedef 0,9–1,0 için de ayrı test var.
 
-## 7. Sonuçlar (sahte girdi, Haziran)
+## 7. Sonuçlar (gerçek veri)
 
 ![Araç sayısı – tepe yük](../raporlar/hafta5-ym2-tepe-yuk.png)
 
 **Tablo 1. Kontrolsüz şarjda araç sayısına göre tepe yük (S2).**
 
-| Araç | İstasyon tepe (kW) | Saat | Şebeke tepe (kW) | 180 kW aşılan adım |
-| --- | --- | --- | --- | --- |
-| 5 | 66 | 19:15 | 118 | 0 |
-| 10 | 160 | 19:30 | 207 | 2 |
-| 15 | 210 | 19:30 | 257 | 6 |
-| 20 | 210 | 19:45 | 261 | 6 |
-| 30 | 232 | 20:15 | 287 | 13 |
+| Araç | İstasyon tepe (kW) | Saat | Şebeke tepe, Haziran (kW) | Şebeke tepe, Aralık (kW) | 180 kW aşılan adım (Haz / Ara) |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 0 | — | 23 | 38 | 0 / 0 |
+| 5 | 66 | 19:15 | 88 | 103 | 0 / 0 |
+| 10 | 160 | 19:30 | 181 | 197 | 1 / 2 |
+| 15 | 210 | 19:30 | 231 | 247 | 4 / 5 |
+| 20 | 210 | 19:45 | 232 | 246 | 5 / 6 |
+| 30 | 232 | 20:15 | 255 | 265 | 13 / 13 |
+| 40 | 222 | 20:45 | 244 | 253 | 18 / 21 |
 
 10 araçtan itibaren istasyon 150 kW sınırını, site 180 kW sınırını aşıyor. 15 araçtan sonra tepe pek artmıyor
-çünkü 10 ünitenin hepsi zaten dolu: tepeyi araç sayısı değil ünite sayısı belirliyor.
+çünkü 10 ünitenin hepsi zaten dolu: tepeyi araç sayısı değil ünite sayısı belirliyor; araç sayısı arttıkça tepe
+yükselmek yerine akşama yayılıyor (aşılan adım sayısı artıyor). İstasyon yükü Haziran ve Aralık'ta aynı, çünkü
+araçların geliş dağılımı mevsime bağlı değil; aradaki fark sabit yükten geliyor (Aralık'ta akşam ~15 kW daha yüksek).
+
+Kontrolsüz şarjda (20 araç) istasyonun en yüklü anı 19:45: 210 kW, 8 AC + 2 DC ünitenin hepsi şarj ediyor, bağlı
+araçların ortalama SOC'si 0,53. Simulink D2 senaryosu (toplu araç bağlanması) bu değerlerle kurulabilir.
 
 ![Ünite doluluğu](ym2-unite-dolulugu.png)
 
-**Tablo 2. Kullanıcı memnuniyeti** (`ym2-memnuniyet.md`).
+**Tablo 2. Kullanıcı memnuniyeti, Haziran** (`ym2-memnuniyet.md`).
 
 | | S2 kontrolsüz | S3 akıllı (geçici) | S2, nöbetleşe kapalı |
 | --- | --- | --- | --- |
