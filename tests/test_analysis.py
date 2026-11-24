@@ -61,7 +61,7 @@ def test_cyclic_battery_gives_no_free_energy(cfg):
     # Batarya hep boşaltılıyorsa ve hiç şarj edilmiyorsa, döngüsel çalıştırmada verdiği enerji ~0 olmalı
     key = ("kis", "hafta_ici", "tum")
     inp = seasons.representative_inputs(cfg, key)
-    s = Scenario("drain", ems=lambda c: DrainEMS())
+    s = Scenario("drain", ems=lambda c: DrainEMS(), battery=lambda c: SimpleBattery(c))   # deşarjı kayıpsız batarya
     steps = run_day(cfg, s, inp)
     assert -steps["bess_kw"].sum() * 0.25 < 1.0
     # Isınma olmasa batarya ilk gün başlangıç SOC'sindeki enerjiyi bedava verirdi

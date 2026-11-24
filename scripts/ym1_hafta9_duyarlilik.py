@@ -2,24 +2,27 @@
 
 Her nokta 24 temsili günden yıllık tahmin (data/seasons.py, kpi.annualize). Hız için yük akışı yok.
 - Araç sayısı ve PV gücü: Senaryo 2 (kontrolsüz şarj, sahte istasyon).
-- Batarya boyutu: kontrolsüz şarj + GEÇİCİ basit batarya kuralı (aşağıda). YM-3'ün EMS'i gelince
-  bu betik onunla yeniden çalıştırılmalı; sonuçlar yalnızca eğilimi gösterir.
+- Batarya boyutu: senaryo listesinde (sim/scenarios.py) YM-3'ün "S4 Akıllı şarj + batarya" senaryosu varsa onunla;
+  yoksa GEÇİCİ basit batarya kuralıyla (aşağıda). YM-3'ün EMS'i ana koda girince betik kendiliğinden onu kullanır.
 
 Önce veri:  python -m microgrid.data
 Sonra:      python scripts/ym1_hafta9_duyarlilik.py
 Çıktı: results/duyarlilik_*.csv, docs/raporlar/hafta9-ym1-duyarlilik.png
 """
+import dataclasses
+
 import matplotlib
+import pandas as pd
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from microgrid.analysis import sweep
+from microgrid.analysis import run_year, scenario_config, sweep
 from microgrid.config import REPO_ROOT, load_config
 from microgrid.data.tariff import period_at
 from microgrid.interfaces import Decision
-from microgrid.sim.mocks import UncontrolledEMS
-from microgrid.sim.scenarios import Scenario
+from microgrid.sim.mocks import SimpleBattery, UncontrolledEMS
+from microgrid.sim.scenarios import SCENARIOS, Scenario
 
 
 class BatteryRuleEMS(UncontrolledEMS):
@@ -45,7 +48,22 @@ class BatteryRuleEMS(UncontrolledEMS):
 
 cfg = load_config()
 s2 = Scenario("S2 kontrolsüz")
-s_bess = Scenario("S2 + batarya kuralı", ems=lambda c: BatteryRuleEMS(c))
+s4 = next((sc for name, sc in SCENARIOS.items() if name.startswith("S4")), None)
+s_bess = s4 or Scenario("S2 + batarya kuralı (geçici)", ems=lambda c: BatteryRuleEMS(c),
+                        battery=lambda c: SimpleBattery(c))
+
+
+def battery_sweep(scenario, path, values):
+    """Batarya kapasitesi 0 noktası, 0 kWh'i kaldırabilen SimpleBattery ile ("batarya yok") hesaplanır."""
+    rows = []
+    if 0 in values:
+        no_bess = dataclasses.replace(scenario, battery=lambda c: SimpleBattery(c))
+        zero = run_year(scenario_config(cfg, no_bess, {path: 0}), no_bess)[0]
+        rows.append(pd.DataFrame([zero], index=pd.Index([0], name=path)))
+    rows.append(sweep(cfg, scenario, path, [v for v in values if v != 0]))
+    return pd.concat(rows)
+
+
 out_dir = REPO_ROOT / "results"
 out_dir.mkdir(exist_ok=True)
 
@@ -56,7 +74,7 @@ SWEEPS = [
 ]
 results = {}
 for path, values, scen, title, unit in SWEEPS:
-    df = sweep(cfg, scen, path, values)
+    df = battery_sweep(scen, path, values) if path.startswith("bess.") else sweep(cfg, scen, path, values)
     results[path] = df
     df.to_csv(out_dir / f"duyarlilik_{path.split('.')[0]}.csv")
     cols = ["tepe_alim_kw", "maliyet_tl", "yenilenebilir_payi", "oz_tuketim_orani", "site_siniri_asim_kwh"]
