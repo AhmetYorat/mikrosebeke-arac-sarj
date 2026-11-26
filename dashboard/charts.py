@@ -18,7 +18,7 @@ COLORS = {
 LABELS = {
     "pv_kw": "PV üretimi",
     "base_load_kw": "Sabit yük (site)",
-    "ev_kw": "Şarj istasyonu",
+    "ev_kw": "Şarj istasyonu (+ şarj / − V2G)",
     "bess_kw": "Batarya (+ şarj / − deşarj)",
     "grid_kw": "Şebekeden alım (+) / veriş (−)",
 }
@@ -63,9 +63,16 @@ def charger_heatmap(station: pd.DataFrame, cfg: dict) -> go.Figure:
     else:
         pivot = station.pivot_table(index="charger_id", columns="timestamp", values="power_kw", aggfunc="sum")
         pivot = pivot.reindex(chargers)
+    z = pivot.to_numpy()
+    v2g = bool((pivot.fillna(0) < -1e-9).to_numpy().any())
+    if v2g:   # V2G: deşarj (−) mavi, şarj (+) kırmızı, 0 beyaz
+        lim = float(abs(pivot).max().max())
+        scale = dict(colorscale="RdBu_r", zmin=-lim, zmax=lim, zmid=0)
+    else:
+        scale = dict(colorscale="Reds", zmin=0)
     fig = go.Figure(go.Heatmap(
-        z=pivot.to_numpy(), x=pivot.columns, y=pivot.index, colorscale="Reds", zmin=0,
-        colorbar=dict(title="kW"), hovertemplate="%{y} %{x|%H:%M}: %{z:.1f} kW<extra></extra>",
+        z=z, x=pivot.columns, y=pivot.index, **scale,
+        colorbar=dict(title="kW (− V2G)" if v2g else "kW"), hovertemplate="%{y} %{x|%H:%M}: %{z:.1f} kW<extra></extra>",
     ))
     fig.update_layout(height=60 + 28 * len(chargers), margin=dict(t=10, b=10),
                       yaxis=dict(autorange="reversed", title="ünite"))
