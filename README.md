@@ -16,6 +16,10 @@ Kapsam kararı: [docs/kapsam.md](docs/kapsam.md) · Arayüz sözleşmesi: [docs/
 
 Python 3.10 veya üstü gerekir (3.12 ile denendi).
 
+**macOS'ta tek tıkla:** `kurulum.command` dosyasına çift tıklayın. Python 3.10+ bulur (yoksa Homebrew ile kurar), `.venv`'i oluşturur, paketleri kurar, PVGIS verisini bir kez indirir ve dashboard'u açar (http://localhost:8501). İlk açılışta macOS izin isterse: sağ tık → Aç.
+
+Elle kurulum:
+
 ```bash
 git clone https://github.com/AhmetYorat/mikrosebeke-arac-sarj.git
 cd mikrosebeke-arac-sarj
