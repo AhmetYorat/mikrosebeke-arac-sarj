@@ -33,15 +33,48 @@ streamlit run dashboard/app.py
 
 `pytest` yeşil geçmeli, ikinci komut tarayıcıda dashboard'u açmalı.
 
-Simülasyon döngüsü (v0): önce veriyi bir kez hazırla, sonra döngüyü çalıştır. Sonuçlar `results/` altına yazılır.
+`requirements.txt` PuLP'u 4'ün altına sabitler: PuLP 4 CBC çözücüsünü içermiyor ve MILP (S5, S6) çalışmaz.
+Daha önce PuLP 4 kurulduysa `pip install -r requirements.txt` ile 3.x'e dönülür.
+
+## Çalıştırma
+
+Önce veriyi bir kez hazırla (PVGIS'ten güneş verisini indirir, yük profillerini üretir; `data/processed/`):
 
 ```bash
-python -m microgrid.data          # PVGIS indirir, yük profillerini üretir (data/processed/)
-python -m microgrid.sim --gun ikisi   # Haziran ve Aralık temsili günleri; --mock: sahte girdiler
+python -m microgrid.data
 ```
 
-PV, sabit yük ve tarife gerçek veriden gelir; istasyon gerçek modeldir (YM-2: araç kataloğu, CC-CV, sıra ve nöbetleşe şarj); EMS henüz sahte (kontrolsüz şarj).
-Tek seferlik yük akışı: `python -m microgrid.grid` (bkz. [docs/sebeke-modeli.md](docs/sebeke-modeli.md)).
+Sonra:
+
+| Ne | Komut |
+| --- | --- |
+| Dashboard (canlı demo) | `streamlit run dashboard/app.py` |
+| Tek senaryo, iki temsili gün | `python -m microgrid.sim --senaryo S3 --gun ikisi` |
+| **Bütün senaryolar, rapor tabloları ve grafikleri** | `python -m microgrid.sim.sonuclar` → `results/sonuclar/` |
+| Tek seferlik yük akışı | `python -m microgrid.grid` (bkz. [docs/sebeke-modeli.md](docs/sebeke-modeli.md)) |
+
+Veri hazırlanmamışsa döngü ve dashboard **sahte girdilerle** çalışır ve bunu açıkça yazar; bu sayılar raporda kullanılmaz.
+
+**Rapordaki sayılar** GitHub'da üretilir: *Actions → sonuclar → Run workflow*. İş bitince sayfanın altındaki
+`sonuclar` dosyası indirilir (KPI tabloları, `ozet.md`, karşılaştırma grafikleri). Böylece herkes aynı sürümlerle
+aynı sayıları görür; `main`'e kod değiştiğinde de kendiliğinden çalışır.
+
+## Senaryolar
+
+İstasyon hepsinde YM-2'nin modelidir (araç kataloğu, CC-CV, sıra ve nöbetleşe şarj); 20 araç, 8 × AC 22 kW + 2 × DC 50 kW,
+istasyon sınırı 150 kW, site şebeke sınırı 180 kW. Tanımlar: `src/microgrid/sim/scenarios.py`.
+
+| | Senaryo | EMS (YM-3) |
+| --- | --- | --- |
+| S1 | Temel (araç yok) | Karşılaştırma tabanı |
+| S2 | Kontrolsüz şarj | Araç geldiği an tam güç |
+| S3 | Akıllı şarj | Kural tabanlı: ucuz tarifeye yayma, SOC tabanı, PV fazlası, sınırlar |
+| S4 | Akıllı şarj + batarya | S3 + 200 kWh / 100 kW batarya |
+| S5 | Optimizasyon | Kayan ufuklu MILP (PuLP): en düşük maliyet |
+| S6 | V2G | S5 + araçtan şebekeye deşarj |
+
+Dinamik senaryolar (Simulink, EM-1/EM-2): D1 yük basamağı + V2G, D2 toplu araç bağlanması, D3 PV ani düşüşü,
+D4 ada modu. CSV'ler `simulink/outputs/` altına geldikçe dashboard'un *Dinamik* sekmesinde görünür.
 
 ## Klasör yapısı
 
@@ -49,10 +82,11 @@ Tek seferlik yük akışı: `python -m microgrid.grid` (bkz. [docs/sebeke-modeli
 | --- | --- | --- |
 | `config/default.yaml` | Tüm senaryo parametreleri (istasyon, araçlar, PV, BESS, tarife) | Herkes (PR ile) |
 | `src/microgrid/data/` | PVGIS, yük ve tarife verileri; PV ve yük modelleri | YM-1 |
+| `src/microgrid/kpi.py` | Performans göstergeleri (tepe, maliyet, öz tüketim, sınır aşımı) | YM-1 |
 | `src/microgrid/station/` | Şarj istasyonu: araç talebi, üniteler, CC-CV, şarj stratejileri | YM-2 |
 | `src/microgrid/ems/` | EMS: batarya yönetimi, kural tabanlı akıllı şarj, MILP | YM-3 |
 | `src/microgrid/grid/` | pandapower ağı ve yük akışı | YM-4 + EM-2 |
-| `src/microgrid/sim/` | Simülasyon döngüsü | YM-4 |
+| `src/microgrid/sim/` | Simülasyon döngüsü, senaryolar, sonuç üretimi | YM-4 |
 | `src/microgrid/simulink_io/` | Simulink CSV'lerini içeri alma | YM-4 + EM-2 |
 | `dashboard/` | Streamlit arayüzü | YM-4 |
 | `simulink/` | Simulink modeli ve CSV çıktıları | EM-1, EM-2 |

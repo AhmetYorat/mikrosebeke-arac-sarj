@@ -13,3 +13,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# PuLP 3.x her değişken için "PuLP 4'te kaldırılacak" uyarısı basıyor (bir test koşusunda 300 binden fazla);
+# gerçek uyarılar arada kayboluyordu. Sürüm requirements.txt'te <4'e sabit.
+filterwarnings = ["ignore::DeprecationWarning:pulp.*"]
