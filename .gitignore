@@ -26,3 +26,6 @@ results/
 
 # Birleşik raporun Word çıktısı (scripts/rapor_birlestir.py üretir; RAPOR.md repoda)
 docs/rapor/RAPOR.docx
+
+# Demo kaydının deneme sürümleri (sahte girdiyle; sunumda kullanılmaz)
+docs/sunum/*-SAHTE.*
