@@ -22,6 +22,12 @@ station:
   chargers:
     - {kind: AC, count: 8, power_kw: 22}
     - {kind: DC, count: 2, power_kw: 50}   # site otoparkında DC gerekli mi? bkz. docs/kapsam.md
+  # İstasyon modeli (YM-2, src/microgrid/station). Güçler şebeke tarafıdır; bataryaya giren = güç × süre × verim.
+  charge_efficiency: 0.95   # şebeke -> batarya (H2 parametre tablosu); V2G'de batarya -> şebeke için de aynı
+  cv_threshold_soc: 0.8     # CC -> CV geçişi: bu SOC'den sonra güç doğrusal azalır
+  cv_min_fraction: 0.15     # CV fazında gücün inebileceği en düşük oran
+  rotate_when_full: true    # nöbetleşe şarj: hedefe ulaşan araç, sırada bekleyen varsa üniteyi bırakır
+  v2g_enabled: false        # araçtan şebekeye deşarj (Senaryo 6 true yapar)
 
 vehicles:
   count: 20
@@ -31,6 +37,15 @@ vehicles:
   departure_hour: {mean: 7.5,  std: 1.0}
   arrival_soc:    {min: 0.2, max: 0.6}
   target_soc: 0.8
+  v2g_min_soc: 0.3          # V2G'de araç bu SOC'nin altına indirilmez (YM-2)
+  # Araç kataloğu (YM-2, Hafta 2 parametre tablosu). share toplamı 1. Bu liste yoksa tüm araçlar battery_kwh,
+  # AC 22 kW / DC 50 kW, V2G'siz kabul edilir. max_ac_kw: aracın yerleşik şarj cihazı (OBC) sınırı.
+  fleet:
+    - {model: "Renault Zoe E-Tech",    battery_kwh: 52.0, max_ac_kw: 22, max_dc_kw: 50,  v2g: false, share: 0.25}
+    - {model: "Tesla Model 3 SR+",     battery_kwh: 60.0, max_ac_kw: 11, max_dc_kw: 170, v2g: true,  share: 0.30}
+    - {model: "Togg T10X Uzun Menzil", battery_kwh: 88.5, max_ac_kw: 22, max_dc_kw: 150, v2g: false, share: 0.25}
+    - {model: "Hyundai Ioniq 5",       battery_kwh: 77.4, max_ac_kw: 11, max_dc_kw: 220, v2g: true,  share: 0.10}
+    - {model: "Peugeot e-208",         battery_kwh: 50.0, max_ac_kw: 11, max_dc_kw: 100, v2g: false, share: 0.10}
 
 pv:
   installed_kw: 100

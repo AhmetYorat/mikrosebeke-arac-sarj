@@ -21,3 +21,5 @@ slprj/
 
 # Simülasyon çıktıları (python -m microgrid.sim)
 results/
+.superpowers/
+.vscode/
