@@ -64,7 +64,7 @@ if source == SAHTE:
     st.warning("Gerçek veri dosyaları bulunamadı; **sahte girdilerle** çalışılıyor. Bu sayılar raporda kullanılmamalı. "
                "Gerçek veri için bir kez: `python -m microgrid.data`", icon="⚠️")
 if scenario.temporary:
-    st.info("Bu senaryo henüz sahte istasyon/EMS modülüyle çalışıyor; YM-2/YM-3 modülleri gelince sonuçlar değişecek.",
+    st.info("Bu senaryo henüz sahte istasyon modülüyle çalışıyor (CC-CV eğrisi yok); YM-2 istasyonu gelince sonuçlar değişecek.",
             icon="ℹ️")
 
 # ---- KPI kartları (YM-1'in KPI modülü; tanımlar src/microgrid/kpi.py) ----

@@ -1,8 +1,8 @@
 """Senaryo tanımları ve tek gün çalıştırma (YM-4). Dashboard senaryo listesini buradan okur.
 
 Bir senaryo; istasyon, EMS ve batarya modüllerini nasıl kuracağını ve config'te neyi değiştireceğini söyler.
-Varsayılan istasyon YM-2'nin gerçek istasyonudur (ChargingStation: CC-CV, araç kataloğu, sıra ve nöbetleşe şarj).
-YM-3 modülleri geldikçe senaryo listesine tek satır eklenir; dashboard kendiliğinden gösterir:
+İstasyon YM-2'nin gerçek istasyonu (ChargingStation: CC-CV, araç kataloğu, sıra ve nöbetleşe şarj), batarya ve EMS'ler
+YM-3'ün (BESS, RuleBasedEMS, MilpEMS). Yeni senaryo listeye tek satırla eklenir; dashboard kendiliğinden gösterir:
 
     Scenario("S3 akıllı şarj", ems=lambda cfg: RuleBasedEMS(cfg))
 
@@ -17,8 +17,11 @@ from typing import Callable
 
 import pandas as pd
 
+from microgrid.ems.bess import BESS
+from microgrid.ems.milp import MilpEMS
+from microgrid.ems.rule_based import RuleBasedEMS
 from microgrid.sim.loop import SimResult, run, time_index
-from microgrid.sim.mocks import CheapHoursEMS, SimpleBattery, UncontrolledEMS
+from microgrid.sim.mocks import UncontrolledEMS
 from microgrid.station import ChargingStation
 
 
@@ -27,8 +30,8 @@ class Scenario:
     name: str
     description: str = ""
     ems: Callable = lambda cfg: UncontrolledEMS()
-    station: Callable = lambda cfg, start: ChargingStation(cfg, start)
-    battery: Callable = lambda cfg: SimpleBattery(cfg)
+    station: Callable = lambda cfg, start: ChargingStation(cfg, start)   # YM-2
+    battery: Callable = lambda cfg: BESS(cfg)                            # YM-3
     config: dict = field(default_factory=dict)   # {"vehicles.count": 0} gibi noktalı yol -> değer
     temporary: bool = False                      # gerçek modül gelene kadar sahte modülle çalışıyorsa True
 
@@ -64,11 +67,29 @@ SCENARIOS: dict[str, Scenario] = {
             "Araç geldiği an tam güçle şarj olur, batarya kullanılmaz. Sorunun görüldüğü senaryo.",
         ),
         Scenario(
-            "S3 Akıllı şarj (geçici)",
-            "Gece tarifesine kaydırma + PV fazlası + sınırlara uyum. GEÇİCİ: YM-4'ün referans kuralı; "
-            "YM-3'ün kural tabanlı EMS'i gelince onunla değiştirilecek.",
-            ems=lambda cfg: CheapHoursEMS(cfg),
-            temporary=True,
+            "S3 Akıllı şarj",
+            "Kural tabanlı EMS (YM-3): şarj ayrılışa kadar en ucuz tarife adımlarına eşit yayılır, SOC < 0.30 olan araç "
+            "hemen taban SOC'ye çıkarılır, PV fazlası araçlara verilir, istasyon ve site sınırlarına uyulur. Batarya yok.",
+            ems=lambda cfg: RuleBasedEMS(cfg),
+        ),
+        Scenario(
+            "S4 Akıllı şarj + batarya",
+            "S3'ün araç kuralı + 200 kWh / 100 kW batarya (YM-3): puantta yükü bataryadan karşılar, gece ucuz tarifede "
+            "ve PV fazlasıyla dolar, site sınırını aşacak anda devreye girer.",
+            ems=lambda cfg: RuleBasedEMS(cfg, use_bess=True),
+        ),
+        Scenario(
+            "S5 Optimizasyon (MILP)",
+            "Maliyeti en aza indiren kayan ufuklu MILP (YM-3, PuLP): her adımda bağlı araçlar, batarya, istasyon ve "
+            "site sınırlarıyla gün sonuna kadar çözülür, ilk adım uygulanır. Tepe alımı küçük ağırlıkla bastırılır.",
+            ems=lambda cfg: MilpEMS(cfg),
+        ),
+        Scenario(
+            "S6 V2G (MILP)",
+            "S5'e V2G eklenir (YM-3 EMS + YM-2 istasyonu): araç kataloğunda V2G'ye uygun araçlar şebekeye geri verebilir. "
+            "Araç SOC'si vehicles.v2g_min_soc altına inmez, ayrılışta hedef SOC garanti. Karşılaştırma tabanı: S5.",
+            ems=lambda cfg: MilpEMS(cfg, v2g=True),
+            config={"station.v2g_enabled": True},
         ),
     ]
 }
