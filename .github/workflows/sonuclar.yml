@@ -9,6 +9,9 @@ on:
   push:
     branches: [main]
     paths: ["src/**", "config/**"]
+  # Modeli değiştiren PR'larda da çalışır: inceleyen, değişikliğin sayıları nasıl etkilediğini iş özetinde görür.
+  pull_request:
+    paths: ["src/**", "config/**", ".github/workflows/sonuclar.yml"]
 
 jobs:
   sonuclar:
