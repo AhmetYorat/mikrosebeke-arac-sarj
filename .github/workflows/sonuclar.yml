@@ -1,0 +1,46 @@
+# Rapordaki sayıları gerçek veriyle üretir (YM-4). Elle çalıştırılır:
+#   GitHub → Actions → sonuclar → Run workflow
+# Çıktı: "sonuclar" adlı indirilebilir dosya (KPI tabloları, ozet.md, karşılaştırma grafikleri, adım CSV'leri).
+# Neden CI'da: herkesin bilgisayarında aynı sürümlerle ve aynı veriyle aynı sayıların çıkması için.
+name: sonuclar
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["src/**", "config/**"]
+
+jobs:
+  sonuclar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Bağımlılıklar
+        run: pip install -r requirements.txt && pip install -e .
+
+      - name: Veri önbelleği (PVGIS + yük profilleri)
+        uses: actions/cache@v4
+        with:
+          path: data/processed
+          key: veri-${{ hashFiles('config/default.yaml', 'src/microgrid/data/**') }}
+
+      - name: Veriyi hazırla
+        run: python -m microgrid.data
+
+      - name: Bütün senaryolar, iki temsili gün, yük akışıyla
+        run: python -m microgrid.sim.sonuclar
+
+      - name: Özeti iş sayfasına yaz
+        run: cat results/sonuclar/ozet.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sonuclar
+          path: results/sonuclar/
+          retention-days: 90

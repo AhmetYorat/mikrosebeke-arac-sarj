@@ -19,6 +19,8 @@ from microgrid.config import REPO_ROOT, load_config
 from microgrid.data.tariff import period_at
 
 # Tablo sırası ve birimleri; dashboard bu adlara güvenebilir.
+LIMIT_TOL_KW = 1e-3   # 1 W: sınır aşımı sayılmayan sayısal pay
+
 KPI_UNITS = {
     "tepe_alim_kw": "kW",
     "tepe_alim_saati": "",
@@ -75,7 +77,9 @@ def compute(steps: pd.DataFrame, cfg=None) -> pd.Series:
     ev_kwh = ev_charge.sum() * dt
 
     site_limit = cfg["grid"]["site_import_limit_kw"]
+    # Sınıra tam oturan çözümler (MILP) çözücü toleransı kadar (~1e-6 kW) aşabilir; bu aşım sayılmaz (YM-4).
     over = (grid - site_limit).clip(lower=0)
+    over = over.where(over > LIMIT_TOL_KW, 0.0)
     has_grid = steps["min_vm_pu"].notna().any()
 
     k = {
@@ -96,7 +100,7 @@ def compute(steps: pd.DataFrame, cfg=None) -> pd.Series:
         "yuk_faktoru": _ratio(imp.mean(), imp.max()),
         "site_siniri_asim_adim": int((over > 0).sum()),
         "site_siniri_asim_kwh": float(over.sum() * dt),
-        "istasyon_siniri_asim_adim": int((steps["ev_kw"] > cfg["station"]["power_limit_kw"] + 1e-9).sum()),
+        "istasyon_siniri_asim_adim": int((steps["ev_kw"] > cfg["station"]["power_limit_kw"] + LIMIT_TOL_KW).sum()),
         "min_gerilim_pu": float(steps["min_vm_pu"].min()) if has_grid else float("nan"),
         "gerilim_ihlal_adim": int((steps["min_vm_pu"] < cfg["grid"]["voltage_min_pu"]).sum()),
         "max_kablo_yuklenme_pct": float(steps["max_line_loading_pct"].max()) if has_grid else float("nan"),
