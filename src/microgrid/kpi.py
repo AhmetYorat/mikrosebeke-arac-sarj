@@ -47,6 +47,10 @@ KPI_UNITS = {
 }
 
 
+def _label(key):
+    return "/".join(map(str, key)) if isinstance(key, tuple) else str(key)
+
+
 def _ratio(a, b):
     return float(a / b) if b > 0 else float("nan")
 
@@ -107,6 +111,48 @@ def compare(results: dict, cfg=None) -> pd.DataFrame:
     table = pd.DataFrame({name: compute(steps, cfg) for name, steps in results.items()})
     table["birim"] = pd.Series(KPI_UNITS)
     return table
+
+
+# Gün sayısıyla çarpılıp toplanan (yayılı) KPI'lar; gerisi oran ya da uç değer.
+_SUMMED = [
+    "maliyet_tl", "alim_kwh", "alim_gunduz_kwh", "alim_puant_kwh", "alim_gece_kwh", "veris_kwh", "pv_kwh",
+    "tuketim_kwh", "arac_sarj_kwh", "site_siniri_asim_adim", "site_siniri_asim_kwh", "istasyon_siniri_asim_adim",
+    "gerilim_ihlal_adim",
+]
+
+
+def annualize(results: dict, weights: dict, cfg=None) -> pd.Series:
+    """Temsili günlerin sonuçlarından yıllık KPI (data/seasons.py).
+
+    results: {anahtar: adım tablosu}, weights: {anahtar: yılda kaç gün}. Enerji, maliyet ve aşım sayıları
+    ağırlıklı toplanır; oranlar yıllık toplamlardan yeniden hesaplanır; tepe ve gerilim uç değerlerdir.
+    """
+    cfg = cfg or load_config()
+    per_day = pd.DataFrame({k: compute(s, cfg) for k, s in results.items() if weights.get(k, 0) > 0})
+    w = pd.Series({k: weights[k] for k in per_day.columns}, dtype=float)
+    num = per_day.loc[_SUMMED].astype(float)
+
+    a = (num * w).sum(axis=1)
+    pv_used = a["pv_kwh"] - a["veris_kwh"]
+    ev_puant = (per_day.loc["arac_sarj_puant_payi"].astype(float).fillna(0) * num.loc["arac_sarj_kwh"] * w).sum()
+    peaks = per_day.loc["tepe_alim_kw"].astype(float)
+    hours_per_year = w.sum() * 24
+
+    k = {
+        **a.to_dict(),
+        "tepe_alim_kw": peaks.max(),
+        "tepe_alim_saati": f"{per_day.loc['tepe_alim_saati', peaks.idxmax()]} ({_label(peaks.idxmax())})",
+        "puant_tepe_alim_kw": per_day.loc["puant_tepe_alim_kw"].astype(float).max(),
+        "ortalama_fiyat_tl_kwh": _ratio(a["maliyet_tl"], a["alim_kwh"]),
+        "arac_sarj_puant_payi": _ratio(ev_puant, a["arac_sarj_kwh"]),
+        "oz_tuketim_orani": _ratio(pv_used, a["pv_kwh"]),
+        "yenilenebilir_payi": _ratio(pv_used, a["tuketim_kwh"]),
+        "yuk_faktoru": _ratio(a["alim_kwh"] / hours_per_year, peaks.max()),
+        "min_gerilim_pu": per_day.loc["min_gerilim_pu"].astype(float).min(),
+        "max_kablo_yuklenme_pct": per_day.loc["max_kablo_yuklenme_pct"].astype(float).max(),
+        "max_trafo_yuklenme_pct": per_day.loc["max_trafo_yuklenme_pct"].astype(float).max(),
+    }
+    return pd.Series(k)[list(KPI_UNITS)]
 
 
 def load_steps(path) -> pd.DataFrame:
