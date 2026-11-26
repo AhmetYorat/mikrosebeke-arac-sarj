@@ -44,13 +44,13 @@ def test_s2_charges_in_evening(cfg):
 
 
 def test_s3_moves_charging_out_of_puant_without_new_peak(cfg):
-    """Geçici akıllı şarj: puanttaki araç şarjı azalır, maliyet ve tepe düşer, sınırlara uyulur."""
+    """Kural tabanlı akıllı şarj (YM-3) + gerçek istasyon (YM-2): puanttaki araç şarjı azalır, maliyet ve tepe düşer, sınırlara uyulur."""
     from microgrid.kpi import compute
 
     index = time_index(cfg)
     inputs = mock_inputs(cfg, index)
     s2 = compute(simulate(cfg, SCENARIOS["S2 Kontrolsüz şarj"], inputs).steps, cfg)
-    s3_steps = simulate(cfg, SCENARIOS["S3 Akıllı şarj (geçici)"], inputs).steps
+    s3_steps = simulate(cfg, SCENARIOS["S3 Akıllı şarj"], inputs).steps
     s3 = compute(s3_steps, cfg)
     assert s3["arac_sarj_puant_payi"] < 0.1 < s2["arac_sarj_puant_payi"]
     assert s3["maliyet_tl"] < s2["maliyet_tl"]
@@ -61,22 +61,22 @@ def test_s3_moves_charging_out_of_puant_without_new_peak(cfg):
 
 
 @pytest.mark.xfail(strict=True, reason=(
-    "YM-2 notu: gerçek istasyonda 20 araç / 10 ünite var. CheapHoursEMS her aracın şarjını bütün geceye yaydığı için "
-    "bağlı araçlar sabaha kadar dolmuyor, nöbetleşe şarj tetiklenmiyor ve sıradaki araçların bir kısmı hedefe "
-    "ulaşamıyor (S3 ~475 kWh, S2 590 kWh; hedefe ulaşma %75). İstasyon doğru davranıyor; EMS ünite sırasını "
-    "hesaba katmalı. YM-3/YM-4 kararına kadar beklenen hata."))
+    "YM-4 entegrasyon notu (YM-3'e): gerçek istasyonda 20 araç / 10 ünite var. RuleBasedEMS şarjı ayrılışa kadarki "
+    "ucuz adımlara yaydığı için bağlı araçlar sabaha kadar dolmuyor, nöbetleşe şarj tetiklenmiyor ve sıradaki "
+    "araçların bir kısmı hedefe ulaşamıyor (verim düzeltmesinden sonra S3 486 kWh, S2 590 kWh; hedefe ulaşma 16/20). "
+    "İstasyon doğru davranıyor; EMS ünite sırasını hesaba katmalı. Düzelince bu xfail kaldırılmalı."))
 def test_s3_delivers_same_energy_as_s2(cfg):
     from microgrid.kpi import compute
 
     inputs = mock_inputs(cfg, time_index(cfg))
     s2 = compute(simulate(cfg, SCENARIOS["S2 Kontrolsüz şarj"], inputs).steps, cfg)
-    s3 = compute(simulate(cfg, SCENARIOS["S3 Akıllı şarj (geçici)"], inputs).steps, cfg)
+    s3 = compute(simulate(cfg, SCENARIOS["S3 Akıllı şarj"], inputs).steps, cfg)
     assert abs(s3["arac_sarj_kwh"] - s2["arac_sarj_kwh"]) < 1e-6
 
 
 def test_s3_does_not_leave_efficiency_tail(cfg):
-    """CheapHoursEMS istediği gücü verime göre hesaplamalı; yoksa araca her adım ihtiyacın %5'i kalır."""
-    log = simulate(cfg, SCENARIOS["S3 Akıllı şarj (geçici)"], mock_inputs(cfg, time_index(cfg))).station
+    """EMS istediği gücü istasyon verimine göre hesaplamalı; yoksa araca her adım ihtiyacın %5'i kalır."""
+    log = simulate(cfg, SCENARIOS["S3 Akıllı şarj"], mock_inputs(cfg, time_index(cfg))).station
     assert ((log.power_kw > 0) & (log.power_kw < 0.05)).sum() == 0
 
 

@@ -92,6 +92,61 @@ class MockStation:
         return applied
 
 
+class V2GMockStation(MockStation):
+    """V2G'ye uygun araçları olan sahte istasyon (YM-3, Senaryo 6). GEÇİCİ: YM-2'nin gerçek istasyonu gelince değişecek.
+
+    MockStation'a şunları ekler: araçların bir kısmı (`v2g_share`) V2G'ye uygun; bu araçlar hedef SOC'ye ulaşsa bile
+    listede kalır ve `max_discharge_kw` bildirir (üniteyle ve `discharge_kw` ile, ayrıca taban SOC'ye kadar olan
+    enerjiyle sınırlı). Negatif `ev_kw` aracı deşarj eder; araç bataryasından çekilen enerji = güç·dt / verim.
+    Şarj kayıpsızdır (MockStation gibi), böylece V2G'siz karşılaştırma aynı istasyonla yapılabilir (`v2g_share=0`).
+    """
+
+    def __init__(self, cfg: dict, start: pd.Timestamp, seed: int = 0, v2g_share: float = 0.4,
+                 discharge_kw: float = 11.0, min_soc: float = 0.3, discharge_eff: float = 0.95):
+        super().__init__(cfg, start, seed)
+        self.discharge_kw, self.min_soc, self.discharge_eff = discharge_kw, min_soc, discharge_eff
+        n_v2g = round(v2g_share * len(self.vehicles))
+        ids = sorted(v["id"] for v in self.vehicles)
+        # her 5 araçtan ikisi: filo boyunca eşit dağılsın, rastgele tohuma bağlı olmasın
+        capable = {vid for i, vid in enumerate(ids) if (i * n_v2g) // len(ids) != ((i + 1) * n_v2g) // len(ids)} if ids else set()
+        for v in self.vehicles:
+            v["v2g"] = v["id"] in capable
+
+    def _max_discharge(self, v: dict, dt_h: float) -> float:
+        if not v["v2g"]:
+            return 0.0
+        usable_kwh = max(0.0, (v["soc"] - self.min_soc) * v["battery_kwh"])
+        return min(self.discharge_kw, self.chargers[v["charger"]], usable_kwh * self.discharge_eff / dt_h)
+
+    def requests(self, ctx: StepContext) -> list[VehicleRequest]:
+        self._connect(ctx.timestamp)
+        out = []
+        for v in self._connected():
+            dis = self._max_discharge(v, ctx.dt_h)
+            if v["soc"] >= v["target_soc"] and dis <= 0:
+                continue
+            out.append(VehicleRequest(
+                charger_id=v["charger"], vehicle_id=v["id"], soc=v["soc"], battery_kwh=v["battery_kwh"],
+                target_soc=v["target_soc"], departure=v["departure"], max_charge_kw=self.chargers[v["charger"]],
+                max_discharge_kw=dis,
+            ))
+        return out
+
+    def apply(self, ctx: StepContext, ev_kw: dict[str, float]) -> dict[str, float]:
+        applied = {}
+        for v in self._connected():
+            p = ev_kw.get(v["charger"], 0.0)
+            if p >= 0:
+                room_kw = max(0.0, (v["target_soc"] - v["soc"]) * v["battery_kwh"] / ctx.dt_h)
+                p = min(p, room_kw, self.chargers[v["charger"]])
+                v["soc"] += p * ctx.dt_h / v["battery_kwh"]
+            else:
+                p = -min(-p, self._max_discharge(v, ctx.dt_h))
+                v["soc"] += p * ctx.dt_h / self.discharge_eff / v["battery_kwh"]
+            applied[v["charger"]] = p
+        return applied
+
+
 class UncontrolledEMS:
     """Senaryo 2: her araç geldiği an tam güçle şarj olur, batarya kullanılmaz."""
 

@@ -2,7 +2,7 @@ numpy
 pandas>=2.2
 pyyaml
 pandapower>=2.14
-pulp
+pulp>=2.9,<4   # PuLP 4 CBC'yi içermiyor ve eski API'yi (LpVariable(...), LpStatus) kaldırdı; MILP (YM-3) 3.x ile yazıldı
 streamlit>=1.36
 plotly
 matplotlib
