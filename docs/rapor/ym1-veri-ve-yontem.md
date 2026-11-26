@@ -88,8 +88,8 @@ toplamı her durumda birebir korunur.
 Bataryanın temsili günlerde bedava enerji kazanmaması için gün döngüsel çalıştırılır: her temsili gün, bataryanın
 bir önceki çalıştırmada bittiği doluluk ile yeniden başlatılır (iki ısınma turu).
 
-Kritik an tespiti için temsili günler ayrıca kullanılabilir: yılın en yüksek şebeke yükü kışın bulutlu bir hafta
-içi günü, 17:45 civarında oluşur.
+Kritik an tespiti için temsili günler ayrıca kullanılabilir: kontrolsüz şarjda (Senaryo 2) yılın en yüksek şebeke
+yükü kışın bir hafta içi günü, 19:45 civarında oluşur (246 kW). Akıllı şarjda tepe gece ucuz tarife dilimine kayar.
 
 ## 5. Ertesi gün tahmini
 

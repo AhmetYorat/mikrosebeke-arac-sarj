@@ -1,9 +1,8 @@
 """Hafta 9 (YM-1): duyarlılık analizi. Araç sayısı, PV gücü ve batarya boyutu yıllık KPI'ları nasıl değiştiriyor?
 
 Her nokta 24 temsili günden yıllık tahmin (data/seasons.py, kpi.annualize). Hız için yük akışı yok.
-- Araç sayısı ve PV gücü: Senaryo 2 (kontrolsüz şarj, sahte istasyon).
-- Batarya boyutu: senaryo listesinde (sim/scenarios.py) YM-3'ün "S4 Akıllı şarj + batarya" senaryosu varsa onunla;
-  yoksa GEÇİCİ basit batarya kuralıyla (aşağıda). YM-3'ün EMS'i ana koda girince betik kendiliğinden onu kullanır.
+- Araç sayısı ve PV gücü: Senaryo 2 (kontrolsüz şarj, YM-2 istasyonu).
+- Batarya boyutu: Senaryo 4 (YM-3 kural tabanlı EMS + batarya, YM-2 istasyonu).
 
 Önce veri:  python -m microgrid.data
 Sonra:      python scripts/ym1_hafta9_duyarlilik.py
@@ -19,42 +18,17 @@ import matplotlib.pyplot as plt
 
 from microgrid.analysis import run_year, scenario_config, sweep
 from microgrid.config import REPO_ROOT, load_config
-from microgrid.data.tariff import period_at
-from microgrid.interfaces import Decision
-from microgrid.sim.mocks import SimpleBattery, UncontrolledEMS
+from microgrid.sim.mocks import SimpleBattery
 from microgrid.sim.scenarios import SCENARIOS, Scenario
-
-
-class BatteryRuleEMS(UncontrolledEMS):
-    """GEÇİCİ (YM-3 EMS'i gelene kadar): araçlar kontrolsüz; batarya PV fazlasını saklar, puantta alımı karşılar.
-
-    Gece şebekeden şarj etmez; bu yüzden kışın PV az olduğunda bataryanın etkisi sınırlı kalır.
-    """
-
-    def __init__(self, cfg):
-        self.cfg = cfg
-
-    def decide(self, inp):
-        ev = super().decide(inp).ev_kw
-        net = inp.base_load_kw + sum(ev.values()) - inp.pv_kw       # bataryasız şebeke alımı
-        if net < 0:
-            bess = -net                                             # fazla PV -> bataryaya
-        elif period_at(self.cfg, inp.ctx.hour)["name"] == "puant":
-            bess = -net                                             # puantta alımı bataryadan karşıla
-        else:
-            bess = 0.0
-        return Decision(ev_kw=ev, bess_kw=bess)
-
 
 cfg = load_config()
 s2 = Scenario("S2 kontrolsüz")
-s4 = next((sc for name, sc in SCENARIOS.items() if name.startswith("S4")), None)
-s_bess = s4 or Scenario("S2 + batarya kuralı (geçici)", ems=lambda c: BatteryRuleEMS(c),
-                        battery=lambda c: SimpleBattery(c))
+s_bess = SCENARIOS["S4 Akıllı şarj + batarya"]
 
 
 def battery_sweep(scenario, path, values):
-    """Batarya kapasitesi 0 noktası, 0 kWh'i kaldırabilen SimpleBattery ile ("batarya yok") hesaplanır."""
+    """Batarya kapasitesi 0 noktası "batarya yok" olarak hesaplanır: YM-3'ün BESS'i 0 kWh'te sıfıra böler,
+    SimpleBattery ise 0 kapasitede hiçbir şey yapmaz."""
     rows = []
     if 0 in values:
         no_bess = dataclasses.replace(scenario, battery=lambda c: SimpleBattery(c))

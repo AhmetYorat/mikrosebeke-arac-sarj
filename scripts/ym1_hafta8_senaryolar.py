@@ -5,9 +5,14 @@ YM-2 istasyonu ve YM-3 EMS'i oraya eklendikçe tablo kendiliğinden genişler; B
 olmayan sütunları "bekleniyor" diye göstermek için. Geçici (sahte modülle çalışan) senaryolar dipnotla işaretlenir.
 
 Önce veri:  python -m microgrid.data
-Sonra:      python scripts/ym1_hafta8_senaryolar.py
+Sonra:      python scripts/ym1_hafta8_senaryolar.py            (~30 dk; MILP senaryoları yavaş)
+            python scripts/ym1_hafta8_senaryolar.py --kayitli  (yalnızca tabloyu results/senaryo_tablosu.csv'den yeniden yazar)
 Çıktı: results/senaryo_tablosu.csv, docs/raporlar/hafta8-ym1-senaryolar.md (rapora girecek tablo)
 """
+import sys
+
+import pandas as pd
+
 from microgrid.analysis import scenario_table
 from microgrid.config import REPO_ROOT, load_config
 from microgrid.grid import PandapowerGrid
@@ -19,6 +24,7 @@ BEKLENEN = [b for b in BEKLENEN if not any(name.startswith(b[:2]) for name in SC
 ROWS = {  # rapordaki tablo: (KPI, başlık, biçim)
     "maliyet_tl": ("Yıllık maliyet", "{:,.0f} TL"),
     "tepe_alim_kw": ("Yılın tepe alımı", "{:.0f} kW"),
+    "arac_sarj_kwh": ("Araçlara verilen enerji", "{:,.0f} kWh"),
     "alim_puant_kwh": ("Puantta alım", "{:,.0f} kWh"),
     "arac_sarj_puant_payi": ("Araç şarjının puant payı", "%{:.0%}"),
     "yenilenebilir_payi": ("Yenilenebilir payı", "%{:.0%}"),
@@ -46,10 +52,13 @@ def fmt(value, pattern):
 
 cfg = load_config()
 scenarios = list(SCENARIOS.values())
-table = scenario_table(scenarios, cfg, grid=PandapowerGrid(cfg))
 out_csv = REPO_ROOT / "results" / "senaryo_tablosu.csv"
-out_csv.parent.mkdir(exist_ok=True)
-table.to_csv(out_csv)
+if "--kayitli" in sys.argv:
+    table = pd.read_csv(out_csv, index_col=0)
+else:
+    table = scenario_table(scenarios, cfg, grid=PandapowerGrid(cfg))
+    out_csv.parent.mkdir(exist_ok=True)
+    table.to_csv(out_csv)
 
 names = [s.name for s in scenarios]
 header = "| KPI | " + " | ".join(names + BEKLENEN) + " |"
@@ -67,7 +76,9 @@ out_md.write_text(
     f"{md}\n\n"
     + "".join(f"- {s.name}: {s.description}" + (" **Geçici:** sahte modülle çalışıyor.\n" if s.temporary and "GEÇİCİ" not in s.description else "\n")
               for s in scenarios)
-    + "\n\"bekleniyor\" sütunları YM-2 istasyon modeli ve YM-3 EMS'i senaryo listesine eklenince aynı betikle dolacak.\n",
+    + ("\n\"bekleniyor\" sütunları ilgili modüller senaryo listesine eklenince aynı betikle dolacak.\n" if BEKLENEN else "")
+    + "\n**Okurken dikkat:** \"Araçlara verilen enerji\" senaryolar arasında farklı. Bir EMS araçlara daha az enerji "
+    "veriyorsa maliyeti de düşük çıkar; maliyet karşılaştırması bu satırla birlikte okunmalı.\n",
     encoding="utf-8",
 )
 print(md)
