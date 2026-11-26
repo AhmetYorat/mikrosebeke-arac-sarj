@@ -23,3 +23,6 @@ slprj/
 results/
 .superpowers/
 .vscode/
+
+# Birleşik raporun Word çıktısı (scripts/rapor_birlestir.py üretir; RAPOR.md repoda)
+docs/rapor/RAPOR.docx

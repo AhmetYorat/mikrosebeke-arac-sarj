@@ -18,7 +18,7 @@ Hazır sekmeler (`streamlit run dashboard/app.py` sonrası):
 
 1. `http://localhost:8501/?senaryo=S2`
 2. `http://localhost:8501/?senaryo=S3`
-3. `http://localhost:8501/?senaryo=S6`
+3. `http://localhost:8501/?senaryo=S6` (kenar çubuğundan **Aralık** seçilecek)
 
 ## Akış
 
@@ -27,14 +27,14 @@ Hazır sekmeler (`streamlit run dashboard/app.py` sonrası):
 | 1 | 0:30 | S2, **Güç akışları** | "Site otoparkı: 20 araç, 10 ünite. Akşam eve dönen herkes aynı anda takıyor. Kırmızı çizgi istasyon; puant saatinde (gölgeli) şebeke alımı site sınırını (kesikli çizgi) aşıyor." |
 | 2 | 1:00 | S2, **Şarj istasyonu** | "Her satır bir ünite. 18:00'den sonra hepsi dolu, tam güçte. Alttaki tablo araç başına: geliş, bekleme, SOC, hedefe ulaştı mı (YM-2'nin istasyon modeli: CC-CV, sıra, nöbetleşe şarj)." |
 | 3 | 0:45 | S2, **Şebeke** | "Yük akışı (pandapower): en düşük gerilim ve trafo yüklenmesi. Kontrolsüz şarj gerilimi de düşürüyor." (EM-2 bir cümle) |
-| 4 | 1:30 | **Senaryo karşılaştırması** | "Aynı gün, altı senaryo. Akıllı şarj (S3) puanttaki şarjı neredeyse sıfıra indiriyor, batarya (S4) ve optimizasyon (S5) maliyeti daha da düşürüyor, V2G (S6) en düşük maliyeti veriyor." Tabloda tepe, maliyet ve **hedefe ulaşan araç** satırlarını göster. |
+| 4 | 1:30 | **Senaryo karşılaştırması** | "Aynı gün, altı senaryo. Akıllı şarj (S3) puanttaki tepeyi 232'den 33 kW'a indiriyor; batarya (S4) ve optimizasyon (S5) puantta hiç alım bırakmıyor ve maliyeti daha da düşürüyor." Tabloda **verilen enerji** satırını da göster: maliyetler farklı enerji miktarları üzerinden. Tabloda tepe, maliyet ve **hedefe ulaşan araç** satırlarını göster. |
 | 5 | 1:00 | Karşılaştırma grafiği, sabah saatleri | "Ama tepe yok olmuyor, kayıyor: optimizasyon şarjı gece tarifesinin bitişine (05–06) yığıyor ve site sınırına dayanıyor. Maliyeti en aza indirmek ile tepeyi en aza indirmek aynı şey değil." |
-| 6 | 0:45 | S6, **Şarj istasyonu** | "V2G: mavi hücreler araçtan şebekeye. Araçlar akşam puantında şebekeye verip gece ucuz tarifede geri doluyor; hiçbir araç %30'un altına inmiyor, ayrılışta hedef SOC garanti." (YM-3 bir cümle) |
+| 6 | 0:45 | S6, **Aralık**, **Şarj istasyonu** | "V2G: mavi hücreler araçtan şebekeye. Hiçbir araç %30'un altına inmiyor, ayrılışta hedef SOC garanti. Ama bu sitede miktar küçük: Aralık'ta 21 kWh, Haziran'da hiç; araçlar akşam zaten düşük dolulukla geliyor." (YM-3 bir cümle) **Haziran'da gösterme: V2G hiç kullanılmıyor, ekranda mavi görünmez.** |
 | 7 | 0:30 | **Dinamik (Simulink)** | "Python günün kritik anını buluyor; elektrik ekibi o anı Simulink'te saniye mertebesinde inceliyor: frekans, gerilim." (EM-1/EM-2 sonuçları varsa grafiği aç) |
 | 8 | 0:15 | Kenar çubuğu | İstenirse canlı: araç sayısını 20 → 35 yap, S2'de tepenin ve sınır aşımının arttığını göster. |
 
-> Bu cümlelerdeki sıralamalar sahte girdiyle görülen sonuçlara göre yazıldı. Sunumdan önce `sonuclar` iş akışının
-> **gerçek veri** tablosuyla karşılaştırılıp gerekirse düzeltilmeli.
+> Sayılar ve sıralamalar 26.11.2026'da `sonuclar` iş akışının **gerçek veri** tablosuyla kontrol edildi (rapor, Entegrasyon
+> bölümü Tablo 4.1–4.2). Model değişirse demo öncesi yeniden kontrol edilmeli.
 
 ## Bir şey ters giderse
 
