@@ -38,7 +38,6 @@ def run_cached(cfg_json: str, scenario_name: str, with_grid: bool):
 # ---- Kenar çubuğu: senaryo ve parametreler ----
 with st.sidebar:
     st.markdown("### ⚡ Kontrol paneli")
-    st.caption("Senaryoyu ve günü seçin; şema, kartlar ve grafikler birlikte değişir.")
     st.header("Senaryo")
     names = list(SCENARIOS)
     # ?senaryo=S6 ile doğrudan bir senaryoya açılır (demo bağlantıları için)
@@ -46,7 +45,6 @@ with st.sidebar:
     default = next((i for i, n in enumerate(names) if n.split()[0].lower() == wanted.lower()), names.index("S2 Kontrolsüz şarj"))
     scenario_name = st.selectbox("Senaryo", names, index=default)
     scenario = SCENARIOS[scenario_name]
-    st.caption(sema.SENARYO.get(scenario_name.split()[0], {}).get("kisa", scenario.description))
     day = st.radio("Temsili gün", list(TEMSILI_GUNLER), format_func=lambda d: sema.GUN_ADI.get(d, d.capitalize()), horizontal=True,
                    help="Hafta içi ortalama gün; öğlen başlar, ertesi gün öğlen biter.")
 
