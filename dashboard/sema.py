@@ -84,6 +84,23 @@ section[data-testid="stSidebar"] {{ background: var(--paper); border-right: 1px 
 .mk-score .cell {{ display:flex; align-items:center; gap: 8px; white-space: nowrap; }}
 .mk-score .cell i {{ display:block; height: 8px; border-radius: 4px; background: var(--c); opacity: .75; }}
 .mk-score .best {{ color: {GOOD}; font-weight: 800; }}
+.mk-note {{ background: #FFF6EE; border: 1px solid #F2C9A8; border-left: 5px solid var(--accent); border-radius: 14px;
+  padding: 12px 18px 6px; margin: 10px 0 6px; }}
+.mk-note-h {{ font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 800; color: #A9461A; margin-bottom: 4px; }}
+.mk-note ul {{ margin: 0; padding-left: 0; list-style: none; }}
+.mk-note li {{ font-size: 15px; line-height: 1.45; color: var(--ink); margin: 0 0 7px; }}
+.mk-explain {{ background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px 10px; margin: 0 0 12px; }}
+.mk-ladder {{ display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }}
+.mk-step {{ border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 8px; font-size: 12.5px; color: var(--soft);
+  display:flex; gap: 6px; align-items: baseline; min-width: 0; white-space: nowrap; overflow: hidden; }}
+.mk-step b {{ color: var(--c); }}
+.mk-step.on {{ background: var(--c); border-color: var(--c); color: #fff; }} .mk-step.on b {{ color: #fff; }}
+.mk-cols {{ display: grid; grid-template-columns: 1.15fr 1.15fr 0.9fr; gap: 18px; }}
+.mk-cols h5 {{ margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); font-family: inherit !important; }}
+.mk-cols ol, .mk-cols ul {{ margin: 0; padding-left: 20px; }}
+.mk-cols li {{ font-size: 14.5px; line-height: 1.45; color: var(--ink); margin-bottom: 5px; }}
+.mk-cols .ders {{ background: var(--ink); color: #F2EEE4; border-radius: 12px; padding: 10px 14px; }}
+.mk-cols .ders h5 {{ color: #F2A27E; }} .mk-cols .ders p {{ font-family: Georgia, serif; font-size: 17px; line-height: 1.4; margin: 0; }}
 .mk-legend {{ font-size: 12.5px; color: var(--soft); margin-top: 6px; }}
 .mk-legend b {{ color: var(--ink); }}
 </style>
@@ -304,3 +321,88 @@ def scorecard(table: pd.DataFrame) -> str:
             out += f'<td><div class="cell"><i style="width:{max(2, 46 * abs(v) / top):.0f}px"></i><span{cls}>{text}</span></div></td>'
         out += "</tr>"
     return out + "</table>"
+
+
+# ---------------------------------------------------------------- senaryo anlatımı (sunum için sade dil)
+# Sayı yok: sayılar gün ve kaydırıcılarla değişiyor, onları sunum notları (notlar.py) sonuçtan hesaplıyor.
+SENARYO = {
+    "S1": dict(
+        kisa="Hiç araç yok: sitenin kendi tüketimi ve güneş paneli. Diğer senaryoları kıyaslamak için taban.",
+        ekler="Taban",
+        nasil=["Evler, ortak alan ve dükkânlar her zamanki gibi elektrik kullanıyor.",
+               "Gündüz güneş paneli üretiyor; fazlası şebekeye veriliyor.",
+               "Otoparkta araç yok, istasyon boş."],
+        bak=["Gündüz eğrinin sıfırın altına inmesi: güneş fazlası şebekeye gidiyor.",
+             "Akşam sitenin kendi küçük tepesi: araçsız gün bu kadar sakin."],
+        ders="Araçların getirdiği her yük ve her maliyet bu tabana göre ölçülüyor."),
+    "S2": dict(
+        kisa="Bugünkü durum: araç takıldığı an tam güçle şarj olur. Kimse yönetmiyor, sınır gözetilmiyor.",
+        ekler="Araçlar",
+        nasil=["Araç akşam eve gelince boş bir üniteye bağlanıyor.",
+               "Ünite ve aracın izin verdiği en yüksek güçle hemen şarj başlıyor.",
+               "Üniteler doluysa araç sırada bekliyor; batarya kullanılmıyor."],
+        bak=["Akşam 18–22 arası (puant) şebeke alımının fırlaması ve site sınırını aşması.",
+             "Şebeke sekmesinde otopark kablosunun aşırı yüklenmesi.",
+             "Şarjın büyük kısmının en pahalı saatlerde yapılması."],
+        ders="Sorunun kendisi: araçlar güneşin bittiği ve elektriğin en pahalı olduğu saatte geliyor."),
+    "S3": dict(
+        kisa="Akıllı şarj: basit kurallarla şarjı gecenin ucuz saatlerine kaydırır. Yatırım gerektirmez.",
+        ekler="+ Kurallar",
+        nasil=["Her aracın ihtiyacı, sabah ayrılana kadarki en ucuz saatlere eşit dağıtılıyor.",
+               "Bataryası %30’un altındaki araç beklemeden şarj ediliyor (güvenlik).",
+               "Güneş fazlası varsa araçlara veriliyor; istasyon ve site sınırları hiç aşılmıyor."],
+        bak=["Akşam tepesinin kaybolması, şarjın geceye yayılması.",
+             "Sabah gece tarifesi bitmeden önce oluşan yeni, küçük tepe.",
+             "Bedeli: araçlar üniteyi uzun tutuyor, bazıları sabah hedefe yetişemiyor."],
+        ders="Sadece zamanlamayı değiştirmek bile şebekeyi büyük ölçüde rahatlatıyor."),
+    "S4": dict(
+        kisa="Akıllı şarj + 200 kWh’lik site bataryası: batarya ucuzken dolar, pahalı saatte boşalır.",
+        ekler="+ Batarya",
+        nasil=["Araçlar S3’teki kurallarla şarj ediliyor.",
+               "Batarya gece ucuz tarifede ve gündüz güneş fazlasıyla doluyor.",
+               "Akşam puantta boşalıp sitenin yükünü karşılıyor; sınır aşılacakken devreye giriyor."],
+        bak=["Tek hat şemasında batarya kutusu: akşam deşarj, gece ve gündüz şarj.",
+             "Puant saatlerinde şebekeden alımın sıfıra yakın olması.",
+             "Maliyet farkı yazın büyük, kışın küçük: kışın güneş fazlası yok."],
+        ders="Batarya özellikle yaz için değerli; kışın kazancı yalnızca gece–puant fiyat farkından."),
+    "S5": dict(
+        kisa="Optimizasyon: kurallar yerine her 15 dakikada en ucuz şarj planını matematikle hesaplar.",
+        ekler="+ Optimizasyon",
+        nasil=["Her adımda o an bağlı araçlar, batarya ve tarifeyle gün sonuna kadar en ucuz plan çözülüyor (MILP).",
+               "Planın yalnızca ilk adımı uygulanıyor; sonra yeni bilgiyle tekrar çözülüyor.",
+               "Sonradan gelecek araçlar bilinmiyor: gerçek hayattaki gibi."],
+        bak=["Günün en düşük maliyeti.",
+             "Tepe kayması: şarj gece tarifesinin bitişinden hemen önceye yığılıyor, site sınırına dayanıyor.",
+             "Hedefe yetişemeyen araç sayısı S3’ten az."],
+        ders="Maliyeti en aza indirmek ile tepeyi en aza indirmek aynı hedef değil."),
+    "S6": dict(
+        kisa="S5 + V2G: uygun araçlar gerektiğinde bataryasından şebekeye enerji geri verebilir.",
+        ekler="+ V2G",
+        nasil=["S5’teki optimizasyon, araçları gerektiğinde küçük bir batarya gibi de kullanabiliyor.",
+               "Araç %30’un altına indirilmiyor; sabah hedef doluluğu garanti.",
+               "Aynı anda hem şarj hem deşarj yok."],
+        bak=["Aralık gününde otoparkta ve ısı haritasında mavi: araçtan şebekeye.",
+             "Haziran’da V2G hiç kullanılmıyor.",
+             "V2G’nin miktarı küçük: araçlar akşam az dolu geliyor, verecek enerjileri yok."],
+        ders="Gece şarj eden konut otoparkında V2G’nin esnekliği az; ofis ya da filo otoparkında daha anlamlı olurdu."),
+}
+
+
+def scenario_explainer(code: str) -> str:
+    """Senaryo merdiveni (S1→S6, her basamak ne ekliyor) + nasıl çalışıyor / ekranda neye bak / ne öğreniyoruz."""
+    info = SENARYO.get(code)
+    if info is None:
+        return ""
+    steps = ""
+    for c, d in SENARYO.items():
+        on = c == code
+        col = SCENARIO_COLORS.get(c, ACCENT)
+        steps += (f'<div class="mk-step{" on" if on else ""}" style="--c:{col}"><b>{c}</b><span>{d["ekler"]}</span></div>')
+    li = lambda xs: "".join(f"<li>{html.escape(x)}</li>" for x in xs)
+    return f"""<div class="mk-explain">
+<div class="mk-ladder">{steps}</div>
+<div class="mk-cols">
+<div><h5>Nasıl çalışıyor?</h5><ol>{li(info["nasil"])}</ol></div>
+<div><h5>Ekranda neye bakmalı?</h5><ul>{li(info["bak"])}</ul></div>
+<div class="ders"><h5>Ne öğreniyoruz?</h5><p>{html.escape(info["ders"])}</p></div>
+</div></div>"""

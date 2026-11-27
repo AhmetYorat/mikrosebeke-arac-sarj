@@ -10,6 +10,7 @@ import pandas as pd
 import streamlit as st
 
 import charts
+import notlar
 import sema
 from microgrid.config import load_config
 from microgrid.grid import PandapowerGrid
@@ -45,7 +46,7 @@ with st.sidebar:
     default = next((i for i, n in enumerate(names) if n.split()[0].lower() == wanted.lower()), names.index("S2 Kontrolsüz şarj"))
     scenario_name = st.selectbox("Senaryo", names, index=default)
     scenario = SCENARIOS[scenario_name]
-    st.caption(scenario.description)
+    st.caption(sema.SENARYO.get(scenario_name.split()[0], {}).get("kisa", scenario.description))
     day = st.radio("Temsili gün", list(TEMSILI_GUNLER), format_func=lambda d: sema.GUN_ADI.get(d, d.capitalize()), horizontal=True,
                    help="Hafta içi ortalama gün; öğlen başlar, ertesi gün öğlen biter.")
 
@@ -59,6 +60,9 @@ with st.sidebar:
         "bess.capacity_kwh": st.slider("Batarya kapasitesi (kWh)", 0, 400, base["bess"]["capacity_kwh"], step=20),
     }
     with_grid = st.toggle("Yük akışı (pandapower)", value=True, help="Kapalıyken daha hızlı; gerilim ve yüklenme boş kalır.")
+    st.header("Sunum")
+    show_notes = st.toggle("🎤 Sunum notları", value=True,
+                           help="Her bölümün altında, o anki sonuçtan hesaplanan “neye dikkat edilmeli” notları.")
 
 overrides = {k: v for k, v in overrides.items() if k not in fixed}
 cfg = apply_overrides(with_start(base, TEMSILI_GUNLER[day]), overrides)
@@ -68,7 +72,10 @@ steps, station, sessions = result.steps, result.station, result.sessions
 BASELINE = "S2 Kontrolsüz şarj"   # akıllı senaryolar buna göre kıyaslanır
 
 # ---- Başlık ----
-st.html(sema.masthead(scenario_name, scenario.description, day, source != SAHTE))
+code = scenario_name.split()[0]
+st.html(sema.masthead(scenario_name, sema.SENARYO.get(code, {}).get("kisa", scenario.description), day, source != SAHTE))
+with st.expander("📘 Bu senaryo nasıl çalışıyor?", expanded=show_notes):
+    st.html(sema.scenario_explainer(code))
 if source == SAHTE:
     st.warning("Gerçek veri dosyaları bulunamadı; **sahte girdilerle** çalışılıyor. Bu sayılar raporda kullanılmamalı. "
                "Gerçek veri için bir kez: `python -m microgrid.data`", icon="⚠️")
@@ -114,6 +121,13 @@ def canli_sema():
         st.html('<div class="mk-panel"><h4>Otopark · 10 ünite</h4>' + sema.parking(at_t, sessions, t, cfg)
                 + f'<div class="mk-legend">Tarife: <b>{sema.tr(price, 2)} TL/kWh</b> ({band}) · '
                   f'Ünitede yazan güç o anki şarj gücü. Turuncu şarj, mavi V2G (araçtan şebekeye), yeşil bağlı ama şarj etmiyor.</div></div>')
+    if show_notes:
+        if len(sessions):
+            conn = sessions["connected_at"]
+            n_wait = int(((sessions.arrival <= t) & (sessions.departure > t) & (conn.isna() | (conn > t))).sum())
+        else:
+            n_wait = 0
+        st.html(notlar.box(notlar.moment(row, len(at_t), n_wait, cfg), f"Bu anda ({label})"))
     if playing:
         time.sleep(0.6)
         st.rerun(scope="fragment")
@@ -127,6 +141,8 @@ tab_flow, tab_station, tab_grid, tab_cmp, tab_dyn, tab_data = st.tabs(
 
 with tab_flow:
     st.plotly_chart(charts.power_flows(steps, cfg), width="stretch")
+    if show_notes:
+        st.html(notlar.box(notlar.power(scenario_name, steps, k, cfg)))
 
 with tab_station:
     if station.empty:
@@ -149,10 +165,14 @@ with tab_station:
             hedefe_ulasti=sessions.reached_target.map({True: "✓", False: "✗"}),
         )[["vehicle_id", "model", "varis", "ayrilis", "first_charger", "bekleme_sa", "soc", "enerji_kwh", "hedefe_ulasti"]]
         st.dataframe(view, hide_index=True, width="stretch")
+    if show_notes:
+        st.html(notlar.box(notlar.station(scenario_name, steps, sessions, k, cfg)))
 
 with tab_grid:
     if steps["min_vm_pu"].notna().any():
         st.plotly_chart(charts.grid_quality(steps, cfg), width="stretch")
+        if show_notes:
+            st.html(notlar.box(notlar.grid(steps, cfg)))
     else:
         st.write("Yük akışı kapalı. Kenar çubuğundan açın.")
 
@@ -176,6 +196,8 @@ with tab_cmp:
         st.markdown("##### Puan kartı")
         st.caption("Çubuk boyu değerle orantılı; yeşil yazı o göstergede en iyi senaryo.")
         st.html(sema.scorecard(table))
+        if show_notes:
+            st.html(notlar.box(notlar.comparison(table, {n: r.steps for n, r in results.items()})))
         with st.expander("Bütün göstergeler (tablo)"):
             view = pd.DataFrame({title: [fmt(k_, table.at[k_, c]) for c in table.columns]
                                  for k_, title, _ in SHOWN if k_ in table.index}, index=table.columns).T

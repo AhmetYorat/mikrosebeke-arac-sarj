@@ -20,6 +20,10 @@ Hazır sekmeler (`streamlit run dashboard/app.py` sonrası):
 2. `http://localhost:8501/?senaryo=S3`
 3. `http://localhost:8501/?senaryo=S6` (kenar çubuğundan **Aralık** seçilecek)
 
+> **Sunum notları:** Kenar çubuğundaki **🎤 Sunum notları** açıkken her bölümün altında turuncu bir kutu çıkar:
+> o anki sonuçtan hesaplanan "neye dikkat edilmeli" maddeleri (sınır aşımı, kablo yüklenmesi, tepe kayması, hedefe
+> yetişemeyen araçlar…). Sayılar kaydırıcıyla değişse de doğru kalır. Kutuya bakıp anlatabilirsiniz.
+
 ## Akış
 
 | # | Süre | Ekranda | Söylenecek |
