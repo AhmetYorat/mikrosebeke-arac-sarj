@@ -65,16 +65,16 @@ section[data-testid="stSidebar"] {{ background: var(--paper); border-right: 1px 
 .mk-panel h4 {{ margin: 0 0 6px; font-size: 13px; letter-spacing:.12em; text-transform: uppercase; color: var(--soft); }}
 @keyframes mk-flow {{ to {{ stroke-dashoffset: -28; }} }}
 .mk-flow {{ stroke-dasharray: 10 18; animation: mk-flow linear infinite; }}
-.mk-bays {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }}
+.mk-bays {{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }}
 .mk-bay {{ border: 1.5px dashed var(--line); border-radius: 12px; padding: 8px 8px 7px; min-height: 92px; background: var(--sand);
-  display:flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--soft); }}
+  display:flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--soft); min-width: 0; overflow: hidden; }}
 .mk-bay.on {{ border: 1.5px solid var(--c); background: var(--paper); }}
-.mk-bay .id {{ font-weight: 700; color: var(--ink); display:flex; justify-content: space-between; font-size: 11.5px; }}
+.mk-bay .id {{ font-weight: 700; color: var(--ink); display:flex; justify-content: space-between; font-size: 11.5px; gap: 4px; flex-wrap: wrap; }}
 .mk-bay .id span {{ color: var(--soft); font-weight: 600; }}
 .mk-bay .car {{ font-size: 20px; line-height: 1.1; }} .mk-bay .car span {{ font-size: 15px; font-weight: 700; color: var(--ink); }}
 .mk-bay .bar {{ height: 8px; border-radius: 4px; background: #E6E0D3; overflow: hidden; }}
 .mk-bay .bar i {{ display:block; height: 100%; background: var(--c); }}
-.mk-bay .kw {{ font-weight: 700; color: var(--c); font-size: 11.5px; white-space: nowrap; }}
+.mk-bay .kw {{ font-weight: 700; color: var(--c); font-size: 12px; line-height: 1.2; white-space: nowrap; }}
 .mk-queue {{ margin-top: 10px; font-size: 13px; color: var(--soft); }}
 .mk-queue span {{ display:inline-block; background: #FBE3DC; color: {BAD}; border-radius: 8px; padding: 2px 8px; margin: 2px 4px 0 0; font-weight: 600; }}
 .mk-score {{ width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 14px; }}
@@ -255,7 +255,7 @@ def parking(at_t: pd.DataFrame, sessions: pd.DataFrame, t: pd.Timestamp, cfg: di
         out += (f'<div class="mk-bay on" style="--c:{c}"><div class="id">{cid}<span>{html.escape(str(r.vehicle_id))}</span></div>'
                 f'<div class="car">🚗 <span>%{r.soc * 100:.0f}</span></div>'
                 f'<div class="bar"><i style="width:{max(0, min(1, r.soc)) * 100:.0f}%"></i></div>'
-                f'<div class="kw">{state} {tr(abs(p))} kW</div></div>')
+                f'<div class="kw">{"V2G " if state == "V2G" else ""}{tr(abs(p))} kW</div></div>')
     out += "</div>"
     if len(sessions):
         conn = sessions["connected_at"]

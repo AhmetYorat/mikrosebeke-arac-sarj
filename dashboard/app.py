@@ -92,7 +92,7 @@ def canli_sema():
     if st.session_state.get("t_owner") != owner or st.session_state.get("t_lbl") not in LABELS_T:
         st.session_state["t_lbl"] = steps["grid_kw"].idxmax().strftime("%H:%M")   # açılışta günün tepe anı
         st.session_state["t_owner"] = owner
-    head, play_col = st.columns([6, 1], vertical_alignment="bottom")
+    head, play_col = st.columns([5, 1.2], vertical_alignment="bottom")
     with play_col:
         playing = st.toggle("▶ Oynat", key="play", help="Günü 15 dakikalık adımlarla oynatır.")
     if playing:
@@ -103,7 +103,7 @@ def canli_sema():
     t = steps.index[LABELS_T.index(label)]
     row = steps.loc[t]
     at_t = station[station["timestamp"] == t] if len(station) else station
-    left, right = st.columns([1.5, 1], gap="medium")
+    left, right = st.columns([1.4, 1], gap="medium")
     with left:
         st.html('<div class="mk-panel"><h4>Canlı tek hat şeması · ' + label + '</h4>'
                 + sema.single_line(row, cfg, len(at_t)) + "</div>")
@@ -112,7 +112,7 @@ def canli_sema():
         band = "puant" if price >= 6 else "gece" if price < 3.5 else "gündüz"
         st.html('<div class="mk-panel"><h4>Otopark · 10 ünite</h4>' + sema.parking(at_t, sessions, t, cfg)
                 + f'<div class="mk-legend">Tarife: <b>{sema.tr(price, 2)} TL/kWh</b> ({band}) · '
-                  f'Turuncu şarj, mavi V2G, yeşil bağlı ama şarj etmiyor.</div></div>')
+                  f'Ünitede yazan güç o anki şarj gücü. Turuncu şarj, mavi V2G (araçtan şebekeye), yeşil bağlı ama şarj etmiyor.</div></div>')
     if playing:
         time.sleep(0.6)
         st.rerun(scope="fragment")
