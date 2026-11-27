@@ -36,7 +36,23 @@ Sık karşılaşılanlar:
 | Streamlit e-posta soruyor | Betik bunu kendisi atlar; elle kurulumda Enter'a basmanız yeterli. |
 | `pip` "editable install" hatası | Python 3.9 veya eski pip kullanılıyor; `kurulum.command` doğru Python'u kendisi bulur. |
 
-### Elle kurulum (Windows, Linux)
+### Windows'ta tek tıkla
+
+1. Repoyu indirin (`git clone …` ya da GitHub'da **Code → Download ZIP**, sonra ZIP'i açın).
+2. Klasördeki **`kurulum.bat`** dosyasına çift tıklayın. Komut penceresi açılır ve sırayla:
+   - Python 3.10+ bulur; yoksa `winget` ile Python 3.12 kurar (yönetici izni gerekmez),
+   - `.venv` sanal ortamını oluşturur ve paketleri kurar,
+   - veri yoksa PVGIS güneş verisini bir kez indirir (`python -m microgrid.data`),
+   - dashboard'u açar: http://localhost:8501
+3. Kapatmak için pencerede **Ctrl + C**. Sonraki açılışlarda da aynı dosyaya çift tıklamanız yeterli.
+
+| Sorun | Çözüm |
+| --- | --- |
+| "Windows bilgisayarınızı korudu" (SmartScreen) | **Ek bilgi → Yine de çalıştır**. |
+| "Python bulunamadı" ve tarayıcıda python.org açıldı | Python 3.12'yi kurarken **"Add python.exe to PATH"** kutusunu işaretleyin, sonra `kurulum.bat`'a tekrar çift tıklayın. |
+| Python'u yeni kurdunuz ama yine bulunamıyor | Pencereyi kapatıp `kurulum.bat`'ı yeniden açın (PATH yeni pencerede güncellenir). |
+
+### Elle kurulum (Linux, ya da betik çalışmazsa)
 
 ```bash
 git clone https://github.com/AhmetYorat/mikrosebeke-arac-sarj.git
