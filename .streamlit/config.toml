@@ -1,10 +1,10 @@
-# Dashboard teması (YM-4): sunumla aynı renkler. `streamlit run dashboard/app.py` repo kökünden çalıştırılınca okunur.
+# Dashboard teması (YM-4): kontrol odası (SCADA) görünümü. `streamlit run dashboard/app.py` repo kökünden çalıştırılınca okunur.
 [theme]
-base = "light"
-primaryColor = "#E0662F"
-backgroundColor = "#F6F3EC"
-secondaryBackgroundColor = "#ECE6DA"
-textColor = "#1C2A3A"
+base = "dark"
+primaryColor = "#22D3EE"
+backgroundColor = "#070B14"
+secondaryBackgroundColor = "#111A2B"
+textColor = "#D7E3F4"
 
 [client]
 toolbarMode = "minimal"

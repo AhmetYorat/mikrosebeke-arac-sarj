@@ -1,7 +1,7 @@
 """Dashboard'un özel görünümü (YM-4): tema, başlık, KPI kartları, canlı tek hat şeması, otopark ve puan kartı.
 
 Hepsi saf HTML/SVG üreten fonksiyonlar; Streamlit'e st.html ile verilir. JavaScript yok, animasyonlar CSS ile.
-Renkler sunumla aynı (lacivert + turuncu), böylece slayt ve demo tek bir görsel dil konuşur.
+Kontrol odası (SCADA) görünümü; sunum slaytları da aynı renkleri kullanır.
 """
 from __future__ import annotations
 
@@ -11,13 +11,15 @@ import math
 
 import pandas as pd
 
-INK, PAPER, SAND, LINE, SOFT = "#1C2A3A", "#FDFCF8", "#F6F3EC", "#DCD6C8", "#5B6573"
-ACCENT, GOOD, BAD, BLUE, SUN = "#E0662F", "#2F8F5B", "#C2412D", "#2468C4", "#D99A00"
+# Kontrol odası (SCADA) teması: koyu zemin, parlayan hatlar, sabit genişlikli sayılar.
+INK, PAPER, SAND, LINE, SOFT = "#D7E3F4", "#0E1626", "#070B14", "#1E2D47", "#7F93B2"
+ACCENT, GOOD, BAD, BLUE, SUN, CYAN, BUS = "#FB923C", "#34D399", "#F87171", "#60A5FA", "#FBBF24", "#22D3EE", "#8FA6C8"
+MONO = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace"
 
 GUN_ADI = {"haziran": "Haziran", "aralik": "Aralık"}   # sözlük anahtarları ASCII, ekranda Türkçe
 
-# Senaryo renkleri: sunumdaki grafiklerle aynı (S1 gri, S2 turuncu, S3 mavi, S4 yeşil, S5 mor, S6 altın)
-SCENARIO_COLORS = {"S1": "#9AA0A8", "S2": "#F47230", "S3": "#257DE0", "S4": "#00A383", "S5": "#6A4CE2", "S6": "#C99700"}
+# Senaryo renkleri (koyu zeminde doğrulandı: açıklık bandı, renk körlüğü ayrımı, kontrast). S1 araçsız taban: nötr gri.
+SCENARIO_COLORS = {"S1": "#7D8FB3", "S2": "#EA6A12", "S3": "#3B82F6", "S4": "#10B981", "S5": "#8B5CF6", "S6": "#B88A00"}
 
 
 def tr(x: float, digits: int = 0) -> str:
@@ -28,81 +30,100 @@ def tr(x: float, digits: int = 0) -> str:
 
 CSS = f"""
 <style>
-:root {{ --ink:{INK}; --paper:{PAPER}; --sand:{SAND}; --line:{LINE}; --soft:{SOFT}; --accent:{ACCENT}; }}
-.stApp {{ background: var(--sand); }}
+:root {{ --ink:{INK}; --paper:{PAPER}; --sand:{SAND}; --line:{LINE}; --soft:{SOFT}; --accent:{ACCENT}; --cyan:{CYAN};
+  --mono:{MONO}; }}
+.stApp {{ background: radial-gradient(1200px 600px at 70% -10%, #10213A 0%, {SAND} 60%) fixed;
+  background-color: {SAND}; }}
+.stApp::before {{ content:""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: linear-gradient(rgba(34,211,238,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.035) 1px, transparent 1px);
+  background-size: 32px 32px; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
-.block-container {{ padding-top: 1.2rem; max-width: 1500px; }}
-h1, h2, h3 {{ font-family: Georgia, 'Times New Roman', serif !important; color: var(--ink); letter-spacing: -0.01em; }}
-section[data-testid="stSidebar"] {{ background: var(--paper); border-right: 1px solid var(--line); }}
-.stTabs [data-baseweb="tab-list"] {{ gap: 4px; border-bottom: 2px solid var(--line); }}
-.stTabs [data-baseweb="tab"] {{ padding: 10px 16px; font-weight: 600; color: var(--soft); }}
-.stTabs [aria-selected="true"] {{ color: var(--ink); }}
-.mk-mast {{ background: var(--ink); color: #F2EEE4; border-radius: 18px; padding: 22px 28px; display:flex;
-  justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 14px; }}
-.mk-mast .eyebrow {{ font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #F2A27E; font-weight: 700; }}
-.mk-mast h1 {{ color: #F2EEE4 !important; font-size: 34px; margin: 4px 0 2px; padding: 0; }}
-.mk-mast .sub {{ color: #B9C3CE; font-size: 15px; }}
-.mk-chip {{ display:inline-block; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
-  margin-left: 6px; border: 1px solid #3A4C60; color: #F2EEE4; white-space: nowrap; }}
-.mk-chip.ok {{ background: #1F4D3A; border-color: #2F8F5B; }}
-.mk-chip.warn {{ background: #5A2A1E; border-color: {BAD}; }}
+.block-container {{ padding-top: 1.2rem; max-width: 1500px; position: relative; z-index: 1; }}
+h1, h2, h3, h4, h5 {{ font-family: system-ui, -apple-system, 'Segoe UI', sans-serif !important; color: var(--ink);
+  letter-spacing: .02em; }}
+section[data-testid="stSidebar"] {{ background: #0A1220; border-right: 1px solid var(--line); }}
+section[data-testid="stSidebar"] h3 {{ text-transform: uppercase; font-size: 15px; letter-spacing: .16em; color: var(--cyan); }}
+.stTabs [data-baseweb="tab-list"] {{ gap: 2px; border-bottom: 1px solid var(--line); }}
+.stTabs [data-baseweb="tab"] {{ padding: 10px 16px; font-weight: 600; color: var(--soft); text-transform: uppercase;
+  font-size: 13px; letter-spacing: .08em; }}
+.stTabs [aria-selected="true"] {{ color: var(--cyan); }}
+[data-testid="stExpander"] details {{ background: rgba(14,22,38,.7); border: 1px solid var(--line); border-radius: 12px; }}
+@keyframes mk-blink {{ 50% {{ opacity: .25; }} }}
+.mk-mast {{ position: relative; background: linear-gradient(135deg, #0F1B30 0%, #0B1424 100%); color: var(--ink);
+  border: 1px solid #22355A; border-radius: 6px; padding: 20px 26px; display:flex; justify-content: space-between;
+  align-items: flex-end; gap: 24px; margin-bottom: 14px; box-shadow: 0 0 0 1px rgba(34,211,238,.06), 0 20px 50px -30px rgba(34,211,238,.35); }}
+.mk-mast::before, .mk-mast::after {{ content:""; position:absolute; width: 18px; height: 18px; border-color: var(--cyan); border-style: solid; }}
+.mk-mast::before {{ top: -1px; left: -1px; border-width: 2px 0 0 2px; }}
+.mk-mast::after {{ bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }}
+.mk-mast .eyebrow {{ font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--cyan); }}
+.mk-mast .eyebrow i {{ display:inline-block; width: 8px; height: 8px; border-radius: 50%; background: {GOOD};
+  box-shadow: 0 0 8px {GOOD}; margin-right: 8px; animation: mk-blink 1.6s infinite; vertical-align: 1px; }}
+.mk-mast h1 {{ color: #F1F6FF !important; font-size: 32px; font-weight: 700; margin: 6px 0 4px; padding: 0; letter-spacing: .01em; }}
+.mk-mast .sub {{ color: #A9BAD4; font-size: 15px; max-width: 900px; }}
+.mk-chip {{ display:inline-block; padding: 5px 12px; border-radius: 4px; font-size: 12.5px; font-weight: 700; font-family: var(--mono);
+  margin-left: 6px; border: 1px solid #2A3E63; color: var(--ink); white-space: nowrap; background: rgba(255,255,255,.02); }}
+.mk-chip.ok {{ color: {GOOD}; border-color: rgba(52,211,153,.5); }}
+.mk-chip.warn {{ color: {BAD}; border-color: rgba(248,113,113,.6); }}
 .mk-kpis {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 4px 0 8px; }}
-.mk-kpi {{ background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px 12px;
-  position: relative; overflow: hidden; }}
-.mk-kpi::before {{ content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background: var(--c, var(--line)); }}
-.mk-kpi .lbl {{ font-size: 13px; color: var(--soft); font-weight: 600; }}
-.mk-kpi .val {{ font-family: Georgia, serif; font-size: 36px; color: var(--ink); line-height: 1.1; margin-top: 4px; }}
-.mk-kpi .val small {{ font-family: inherit; font-size: 16px; color: var(--soft); margin-left: 4px; }}
+.mk-kpi {{ background: linear-gradient(180deg, #0F192B, #0B1322); border: 1px solid var(--line); border-radius: 6px;
+  padding: 14px 18px 12px; position: relative; overflow: hidden; }}
+.mk-kpi::before {{ content:""; position:absolute; left:0; right:0; top:0; height:3px; background: var(--c, var(--line));
+  box-shadow: 0 0 14px var(--c, transparent); }}
+.mk-kpi .lbl {{ font-size: 11.5px; color: var(--soft); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }}
+.mk-kpi .val {{ font-family: var(--mono); font-size: 38px; color: #F1F6FF; line-height: 1.1; margin-top: 6px; font-weight: 600; }}
+.mk-kpi .val small {{ font-size: 15px; color: var(--soft); margin-left: 6px; font-weight: 400; }}
+.mk-kpi.alarm .val {{ color: {BAD}; text-shadow: 0 0 18px rgba(248,113,113,.45); }}
 .mk-kpi .foot {{ font-size: 12.5px; color: var(--soft); margin-top: 4px; min-height: 18px; }}
-.mk-pill {{ display:inline-block; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: 12px; margin-right: 6px; }}
-.mk-pill.up {{ background:#FBE3DC; color:{BAD}; }} .mk-pill.down {{ background:#DDF1E5; color:{GOOD}; }}
-.mk-pill.flat {{ background:#ECE8DF; color:{SOFT}; }}
+.mk-pill {{ display:inline-block; padding: 1px 7px; border-radius: 3px; font-weight: 700; font-size: 12px; margin-right: 6px; font-family: var(--mono); }}
+.mk-pill.up {{ background: rgba(248,113,113,.14); color:{BAD}; }} .mk-pill.down {{ background: rgba(52,211,153,.14); color:{GOOD}; }}
+.mk-pill.flat {{ background: rgba(127,147,178,.15); color:{SOFT}; }}
 .mk-mini {{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 6px; }}
-.mk-mini div {{ background: transparent; border-top: 2px solid var(--line); padding: 6px 2px; font-size: 12.5px; color: var(--soft); }}
-.mk-mini b {{ display:block; font-size: 18px; color: var(--ink); font-family: Georgia, serif; font-weight: 600; }}
-.mk-panel {{ background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; }}
-.mk-panel h4 {{ margin: 0 0 6px; font-size: 13px; letter-spacing:.12em; text-transform: uppercase; color: var(--soft); }}
-@keyframes mk-flow {{ to {{ stroke-dashoffset: -28; }} }}
-.mk-flow {{ stroke-dasharray: 10 18; animation: mk-flow linear infinite; }}
+.mk-mini div {{ border-top: 1px solid var(--line); padding: 7px 2px; font-size: 11.5px; color: var(--soft); text-transform: uppercase; letter-spacing: .06em; }}
+.mk-mini b {{ display:block; font-size: 19px; color: var(--ink); font-family: var(--mono); font-weight: 600; text-transform: none; letter-spacing: 0; margin-top: 2px; }}
+.mk-panel {{ background: rgba(14,22,38,.85); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; position: relative; }}
+.mk-panel h4 {{ margin: 0 0 6px; font-size: 12px; letter-spacing:.16em; text-transform: uppercase; color: var(--cyan); font-family: var(--mono) !important; }}
 .mk-bays {{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }}
-.mk-bay {{ border: 1.5px dashed var(--line); border-radius: 12px; padding: 8px 8px 7px; min-height: 92px; background: var(--sand);
+.mk-bay {{ border: 1px dashed #263A5E; border-radius: 4px; padding: 8px 8px 7px; min-height: 92px; background: rgba(7,11,20,.6);
   display:flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--soft); min-width: 0; overflow: hidden; }}
-.mk-bay.on {{ border: 1.5px solid var(--c); background: var(--paper); }}
-.mk-bay .id {{ font-weight: 700; color: var(--ink); display:flex; justify-content: space-between; font-size: 11.5px; gap: 4px; flex-wrap: wrap; }}
+.mk-bay.on {{ border: 1px solid var(--c); background: #0F192B; box-shadow: inset 0 0 18px -8px var(--c); }}
+.mk-bay .id {{ font-weight: 700; color: var(--ink); display:flex; justify-content: space-between; font-size: 11.5px; gap: 4px;
+  flex-wrap: wrap; font-family: var(--mono); }}
 .mk-bay .id span {{ color: var(--soft); font-weight: 600; }}
-.mk-bay .car {{ font-size: 20px; line-height: 1.1; }} .mk-bay .car span {{ font-size: 15px; font-weight: 700; color: var(--ink); }}
-.mk-bay .bar {{ height: 8px; border-radius: 4px; background: #E6E0D3; overflow: hidden; }}
-.mk-bay .bar i {{ display:block; height: 100%; background: var(--c); }}
-.mk-bay .kw {{ font-weight: 700; color: var(--c); font-size: 12px; line-height: 1.2; white-space: nowrap; }}
+.mk-bay .car {{ font-size: 20px; line-height: 1.1; }} .mk-bay .car span {{ font-size: 15px; font-weight: 700; color: #F1F6FF; font-family: var(--mono); }}
+.mk-bay .bar {{ height: 6px; border-radius: 1px; background: #1A2740; overflow: hidden; }}
+.mk-bay .bar i {{ display:block; height: 100%; background: var(--c); box-shadow: 0 0 8px var(--c); }}
+.mk-bay .kw {{ font-weight: 700; color: var(--c); font-size: 12px; line-height: 1.2; white-space: nowrap; font-family: var(--mono); }}
 .mk-queue {{ margin-top: 10px; font-size: 13px; color: var(--soft); }}
-.mk-queue span {{ display:inline-block; background: #FBE3DC; color: {BAD}; border-radius: 8px; padding: 2px 8px; margin: 2px 4px 0 0; font-weight: 600; }}
-.mk-score {{ width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 14px; }}
-.mk-score th {{ text-align: left; font-size: 12px; color: var(--soft); font-weight: 700; padding: 0 10px; }}
-.mk-score td {{ background: var(--paper); padding: 9px 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }}
-.mk-score td:first-child {{ border-left: 5px solid var(--c); border-radius: 10px 0 0 10px; font-weight: 700; color: var(--ink); }}
-.mk-score td:last-child {{ border-right: 1px solid var(--line); border-radius: 0 10px 10px 0; }}
-.mk-score .cell {{ display:flex; align-items:center; gap: 8px; white-space: nowrap; }}
-.mk-score .cell i {{ display:block; height: 8px; border-radius: 4px; background: var(--c); opacity: .75; }}
+.mk-queue span {{ display:inline-block; background: rgba(248,113,113,.14); color: {BAD}; border-radius: 3px; padding: 2px 8px; margin: 2px 4px 0 0; font-weight: 700; font-family: var(--mono); }}
+.mk-score {{ width: 100%; border-collapse: separate; border-spacing: 0 5px; font-size: 14px; }}
+.mk-score th {{ text-align: left; font-size: 11px; color: var(--soft); font-weight: 700; padding: 0 10px; text-transform: uppercase; letter-spacing: .1em; }}
+.mk-score td {{ background: #0F192B; padding: 9px 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--ink); }}
+.mk-score td:first-child {{ border-left: 4px solid var(--c); border-radius: 4px 0 0 4px; font-weight: 700; }}
+.mk-score td:last-child {{ border-right: 1px solid var(--line); border-radius: 0 4px 4px 0; }}
+.mk-score .cell {{ display:flex; align-items:center; gap: 8px; white-space: nowrap; font-family: var(--mono); }}
+.mk-score .cell i {{ display:block; height: 6px; border-radius: 1px; background: var(--c); box-shadow: 0 0 6px var(--c); }}
 .mk-score .best {{ color: {GOOD}; font-weight: 800; }}
-.mk-note {{ background: #FFF6EE; border: 1px solid #F2C9A8; border-left: 5px solid var(--accent); border-radius: 14px;
+.mk-note {{ background: rgba(251,191,36,.06); border: 1px solid rgba(251,191,36,.28); border-left: 3px solid {SUN}; border-radius: 4px;
   padding: 12px 18px 6px; margin: 10px 0 6px; }}
-.mk-note-h {{ font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 800; color: #A9461A; margin-bottom: 4px; }}
+.mk-note-h {{ font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase; font-weight: 800; color: {SUN}; margin-bottom: 6px; font-family: var(--mono); }}
 .mk-note ul {{ margin: 0; padding-left: 0; list-style: none; }}
-.mk-note li {{ font-size: 15px; line-height: 1.45; color: var(--ink); margin: 0 0 7px; }}
-.mk-explain {{ background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px 10px; margin: 0 0 12px; }}
-.mk-ladder {{ display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }}
-.mk-step {{ border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 8px; font-size: 12.5px; color: var(--soft);
-  display:flex; gap: 6px; align-items: baseline; min-width: 0; white-space: nowrap; overflow: hidden; }}
+.mk-note li {{ font-size: 15px; line-height: 1.5; color: var(--ink); margin: 0 0 7px; }}
+.mk-note li b {{ color: #FFFFFF; }}
+.mk-explain {{ background: rgba(14,22,38,.85); border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px 10px; margin: 0 0 12px; }}
+.mk-ladder {{ display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }}
+.mk-step {{ border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px; font-size: 12.5px; color: var(--soft);
+  display:flex; gap: 6px; align-items: baseline; min-width: 0; white-space: nowrap; overflow: hidden; font-family: var(--mono); }}
 .mk-step b {{ color: var(--c); }}
-.mk-step.on {{ background: var(--c); border-color: var(--c); color: #fff; }} .mk-step.on b {{ color: #fff; }}
+.mk-step.on {{ border-color: var(--c); color: #fff; background: color-mix(in srgb, var(--c) 22%, transparent); box-shadow: 0 0 14px -4px var(--c); }}
 .mk-cols {{ display: grid; grid-template-columns: 1.15fr 1.15fr 0.9fr; gap: 18px; }}
-.mk-cols h5 {{ margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); font-family: inherit !important; }}
+.mk-cols h5 {{ margin: 0 0 6px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); font-family: var(--mono) !important; }}
 .mk-cols ol, .mk-cols ul {{ margin: 0; padding-left: 20px; }}
-.mk-cols li {{ font-size: 14.5px; line-height: 1.45; color: var(--ink); margin-bottom: 5px; }}
-.mk-cols .ders {{ background: var(--ink); color: #F2EEE4; border-radius: 12px; padding: 10px 14px; }}
-.mk-cols .ders h5 {{ color: #F2A27E; }} .mk-cols .ders p {{ font-family: Georgia, serif; font-size: 17px; line-height: 1.4; margin: 0; }}
+.mk-cols li {{ font-size: 14.5px; line-height: 1.5; color: var(--ink); margin-bottom: 5px; }}
+.mk-cols .ders {{ background: linear-gradient(135deg, rgba(34,211,238,.10), rgba(139,92,246,.10)); border: 1px solid rgba(34,211,238,.35);
+  border-radius: 4px; padding: 10px 14px; }}
+.mk-cols .ders p {{ font-size: 17px; line-height: 1.45; margin: 0; color: #F1F6FF; font-weight: 600; }}
 .mk-legend {{ font-size: 12.5px; color: var(--soft); margin-top: 6px; }}
-.mk-legend b {{ color: var(--ink); }}
+.mk-legend b {{ color: var(--ink); font-family: var(--mono); }}
 </style>
 """
 
@@ -112,9 +133,9 @@ def masthead(scenario_name: str, description: str, day: str, real_data: bool) ->
     chip = ('<span class="mk-chip ok">● Gerçek veri</span>' if real_data
             else '<span class="mk-chip warn">● Sahte veri</span>')
     return f"""<div class="mk-mast">
-<div><div class="eyebrow">Mikro-şebeke kontrol odası · Bandırma site otoparkı</div>
+<div><div class="eyebrow"><i></i>Canlı · Mikro-şebeke kontrol odası · Bandırma</div>
 <h1>{html.escape(scenario_name)}</h1><div class="sub">{html.escape(description)}</div></div>
-<div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;min-width:360px"><span class="mk-chip" style="background:{SCENARIO_COLORS.get(code, ACCENT)};border-color:transparent">{code}</span>
+<div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;min-width:360px"><span class="mk-chip" style="color:{SCENARIO_COLORS.get(code, ACCENT)};border-color:{SCENARIO_COLORS.get(code, ACCENT)}">{code}</span>
 <span class="mk-chip">{html.escape(GUN_ADI.get(day, day.capitalize()))} temsili günü</span>{chip}</div></div>"""
 
 
@@ -139,14 +160,15 @@ def kpi_cards(k: pd.Series, ref: pd.Series | None, n_sessions: int, n_reached: i
          f"tepe saati {k.get('tepe_alim_saati', '—')} &nbsp; {_delta(peak, r('tepe_alim_kw'), 'kW', 0)}"),
         ("Puant tepe alımı (17–22)", tr(g("puant_tepe_alim_kw")), "kW", ACCENT,
          _delta(g("puant_tepe_alim_kw"), r("puant_tepe_alim_kw"), "kW", 0)),
-        ("Günlük maliyet", tr(g("maliyet_tl")), "TL", INK, _delta(g("maliyet_tl"), r("maliyet_tl"), "TL", 0)),
+        ("Günlük maliyet", tr(g("maliyet_tl")), "TL", CYAN, _delta(g("maliyet_tl"), r("maliyet_tl"), "TL", 0)),
         ("Hedefe ulaşan araç", "—" if not n_sessions else f"%{g('hedefe_ulasma_orani') * 100:.0f}", "",
          GOOD if n_sessions and n_reached == n_sessions else ACCENT,
          f"{n_reached}/{n_sessions} araç sabah hedef dolulukta" if n_sessions else "bu senaryoda araç yok"),
     ]
     out = '<div class="mk-kpis">'
     for lbl, val, unit, color, foot in cards:
-        out += (f'<div class="mk-kpi" style="--c:{color}"><div class="lbl">{lbl}</div>'
+        alarm = " alarm" if color == BAD else ""
+        out += (f'<div class="mk-kpi{alarm}" style="--c:{color}"><div class="lbl">{lbl}</div>'
                 f'<div class="val">{val}<small>{unit}</small></div><div class="foot">{foot}</div></div>')
     out += "</div>"
     nan = lambda v: v != v
@@ -165,7 +187,7 @@ def kpi_cards(k: pd.Series, ref: pd.Series | None, n_sessions: int, n_reached: i
 # ---------------------------------------------------------------- canlı tek hat şeması
 def _branch(path: str, p_kw: float, scale: float, color: str, reverse: bool) -> str:
     """Bir güç akışı hattı: kalınlık güce, hız güce bağlı; yön işaretle. Akış yoksa ince gri."""
-    base = f'<path d="{path}" stroke="{LINE}" stroke-width="6" fill="none" stroke-linecap="round"/>'
+    base = f'<path d="{path}" stroke="#1B2A44" stroke-width="6" fill="none" stroke-linecap="round"/>'
     mag = abs(p_kw)
     if mag < 0.5:
         return base
@@ -173,13 +195,14 @@ def _branch(path: str, p_kw: float, scale: float, color: str, reverse: bool) -> 
     dur = max(0.35, 2.2 - 1.8 * min(mag / scale, 1.0))
     direction = "reverse" if reverse else "normal"
     return base + (f'<path class="mk-flow" d="{path}" stroke="{color}" stroke-width="{width:.1f}" fill="none" '
-                   f'stroke-linecap="round" style="animation-duration:{dur:.2f}s;animation-direction:{direction}"/>')
+                   f'stroke-linecap="round" filter="url(#glow)" style="animation-duration:{dur:.2f}s;animation-direction:{direction}"/>')
 
 
 def _node(x, y, w, h, title, value, color, sub="") -> str:
-    return (f'<g><rect x="{x - w / 2}" y="{y}" width="{w}" height="{h}" rx="14" fill="{PAPER}" stroke="{color}" stroke-width="3"/>'
-            f'<text x="{x}" y="{y + 27}" text-anchor="middle" font-size="19" font-weight="700" fill="{color}">{title}</text>'
-            f'<text x="{x}" y="{y + 60}" text-anchor="middle" font-size="30" font-family="Georgia,serif" fill="{INK}">{value}</text>'
+    return (f'<g><rect x="{x - w / 2}" y="{y}" width="{w}" height="{h}" rx="6" fill="#0B1424" stroke="{color}" stroke-width="2"/>'
+            f'<rect x="{x - w / 2}" y="{y}" width="{w}" height="4" fill="{color}" opacity="0.85"/>'
+            f'<text x="{x}" y="{y + 27}" text-anchor="middle" font-size="17" font-weight="700" letter-spacing="1" fill="{color}">{title.upper()}</text>'
+            f'<text x="{x}" y="{y + 60}" text-anchor="middle" font-size="30" font-family="ui-monospace,SF Mono,Menlo,Consolas,monospace" font-weight="600" fill="#F1F6FF">{value}</text>'
             + (f'<text x="{x}" y="{y + 84}" text-anchor="middle" font-size="15" fill="{SOFT}">{sub}</text>' if sub else "")
             + "</g>")
 
@@ -200,22 +223,26 @@ def single_line(row: pd.Series, cfg: dict, connected: int) -> str:
     def cable_color(which):
         if loading == loading and which == hot and loading > cfg["grid"]["max_loading_percent"]:
             return BAD
-        return INK
-    grid_col = BAD if over else INK
+        return CYAN
+    grid_col = BAD if over else CYAN
     svg = [f'<svg viewBox="0 0 1000 520" width="1000" height="520" xmlns="http://www.w3.org/2000/svg" '
            f'font-family="system-ui,-apple-system,Segoe UI,sans-serif">'
-           '<style>@keyframes f{to{stroke-dashoffset:-28}}.mk-flow{stroke-dasharray:10 18;animation:f linear infinite}</style>']
+           '<style>@keyframes f{to{stroke-dashoffset:-28}}.mk-flow{stroke-dasharray:10 18;animation:f linear infinite}</style>'
+           '<defs><filter id="glow" filterUnits="userSpaceOnUse" x="0" y="0" width="1000" height="520"><feGaussianBlur stdDeviation="3.5" result="b"/>'
+           '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+           '<pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0H0V25" fill="none" '
+           'stroke="#22D3EE" stroke-opacity="0.06"/></pattern></defs><rect width="1000" height="520" fill="url(#grid)"/>']
     # şebeke ve trafo
     svg.append(_node(500, 2, 260, 70, "Şebeke · 20 kV", ("alım " if grid >= 0 else "veriş ") + f"{tr(abs(grid))} kW", grid_col))
     svg.append(_branch("M500 68 L500 150", grid, scale, grid_col, grid < 0))
-    svg.append(f'<circle cx="500" cy="98" r="17" fill="{PAPER}" stroke="{INK}" stroke-width="2.5"/>'
-               f'<circle cx="500" cy="120" r="17" fill="{PAPER}" stroke="{INK}" stroke-width="2.5"/>'
+    svg.append(f'<circle cx="500" cy="98" r="17" fill="{PAPER}" stroke="{CYAN}" stroke-width="2.5"/>'
+               f'<circle cx="500" cy="120" r="17" fill="{PAPER}" stroke="{CYAN}" stroke-width="2.5"/>'
                f'<text x="530" y="104" font-size="17" font-weight="700" fill="{INK}">Trafo 400 kVA</text>'
                + (f'<text x="530" y="126" font-size="16" fill="{SOFT}">yüklenme %{tload:.0f}</text>' if tload == tload else ""))
     if over:
         svg.append(f'<text x="645" y="44" font-size="17" font-weight="700" fill="{BAD}">⚠ site sınırı {lim:.0f} kW aşıldı</text>')
     # ana pano
-    svg.append(f'<line x1="150" y1="160" x2="850" y2="160" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>'
+    svg.append(f'<line x1="150" y1="160" x2="850" y2="160" stroke="{BUS}" stroke-width="7" stroke-linecap="round"/>'
                f'<text x="150" y="148" font-size="15" font-weight="700" fill="{SOFT}">ANA PANO · 0,4 kV</text>')
     # kablolar
     for x, kw, name, which in ((270, site_kw, "Site kablosu · 150 m", "site"), (730, park_kw, "Otopark kablosu · 100 m", "park")):
@@ -227,20 +254,20 @@ def single_line(row: pd.Series, cfg: dict, connected: int) -> str:
         svg.append(f'<text x="{x + 16}" y="204" font-size="15" fill="{SOFT}">{name}</text>'
                    f'<text x="{x + 16}" y="230" font-size="21" font-weight="700" fill="{col}">{tag}</text>')
     # baralar
-    svg.append(f'<line x1="90" y1="276" x2="460" y2="276" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>'
+    svg.append(f'<line x1="90" y1="276" x2="460" y2="276" stroke="{BUS}" stroke-width="5" stroke-linecap="round"/>'
                f'<text x="90" y="266" font-size="15" font-weight="700" fill="{SOFT}">SİTE BARASI</text>'
-               f'<line x1="540" y1="276" x2="920" y2="276" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>'
+               f'<line x1="540" y1="276" x2="920" y2="276" stroke="{BUS}" stroke-width="5" stroke-linecap="round"/>'
                f'<text x="580" y="266" font-size="15" font-weight="700" fill="{SOFT}">OTOPARK BARASI</text>')
     if vmin == vmin:
         svg.append(f'<text x="500" y="330" text-anchor="middle" font-size="16" fill="{BAD if vmin < cfg["grid"]["voltage_min_pu"] else SOFT}">'
                    f'en düşük gerilim {tr(vmin, 3)} p.u.</text>')
     # uçlar: PV ve yük üretim/tüketim, batarya ve istasyon
     svg.append(_branch("M180 282 L180 372", -pv, scale, SUN, True))
-    svg.append(_branch("M370 282 L370 372", load, scale, INK, False))
+    svg.append(_branch("M370 282 L370 372", load, scale, BUS, False))
     svg.append(_branch("M630 282 L630 372", bess, scale, BLUE, bess < 0))
     svg.append(_branch("M830 282 L830 372", ev, scale, ACCENT if ev >= 0 else BLUE, ev < 0))
     svg.append(_node(180, 376, 190, 96, "Güneş (PV)", f"{tr(pv)} kW", SUN, "100 kWp çatı"))
-    svg.append(_node(370, 376, 190, 96, "Site yükü", f"{tr(load)} kW", INK, "50 daire + ortak"))
+    svg.append(_node(370, 376, 190, 96, "Site yükü", f"{tr(load)} kW", BUS, "50 daire + ortak"))
     soc = row.get("bess_soc", float("nan"))
     svg.append(_node(630, 376, 190, 96, "Batarya", ("şarj " if bess > 0.5 else "deşarj " if bess < -0.5 else "") + f"{tr(abs(bess))} kW",
                      BLUE, f"doluluk %{soc * 100:.0f}" if soc == soc else "bu senaryoda yok"))

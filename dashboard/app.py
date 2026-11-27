@@ -190,7 +190,7 @@ with tab_cmp:
     if key in st.session_state:
         results = {name: run_cached(cfg_json, name, with_grid)[0] for name in SCENARIOS}
         st.markdown("##### Her senaryo kendi panelinde: şebekeden alım")
-        st.caption("Kırmızı kesikli çizgi 180 kW site sınırı, turuncu bant puant (17–22), nokta günün tepesi.")
+        st.caption("Kırmızı kesikli çizgi 180 kW site sınırı, sarı bant puant (17–22), nokta günün tepesi.")
         st.plotly_chart(charts.scenario_small_multiples({n: r.steps for n, r in results.items()}, cfg), width="stretch")
         table = kpi_table(results, cfg)
         st.markdown("##### Puan kartı")
