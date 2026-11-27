@@ -84,6 +84,11 @@ section[data-testid="stSidebar"] {{ background: var(--paper); border-right: 1px 
 .mk-score .cell {{ display:flex; align-items:center; gap: 8px; white-space: nowrap; }}
 .mk-score .cell i {{ display:block; height: 8px; border-radius: 4px; background: var(--c); opacity: .75; }}
 .mk-score .best {{ color: {GOOD}; font-weight: 800; }}
+.mk-note {{ background: #FFF6EE; border: 1px solid #F2C9A8; border-left: 5px solid var(--accent); border-radius: 14px;
+  padding: 12px 18px 6px; margin: 10px 0 6px; }}
+.mk-note-h {{ font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 800; color: #A9461A; margin-bottom: 4px; }}
+.mk-note ul {{ margin: 0; padding-left: 0; list-style: none; }}
+.mk-note li {{ font-size: 15px; line-height: 1.45; color: var(--ink); margin: 0 0 7px; }}
 .mk-legend {{ font-size: 12.5px; color: var(--soft); margin-top: 6px; }}
 .mk-legend b {{ color: var(--ink); }}
 </style>

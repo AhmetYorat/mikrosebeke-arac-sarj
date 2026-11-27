@@ -61,3 +61,34 @@ def test_live_diagram_parts():
     at_t = pd.DataFrame([dict(timestamp=t, charger_id="AC1", vehicle_id="EV01", soc=0.42, power_kw=11.0)])
     bays = sema.parking(at_t, pd.DataFrame(), t, cfg)
     assert bays.count("mk-bay\"") + bays.count("mk-bay on") == 10 and "EV01" in bays and "%42" in bays
+
+
+def test_presentation_notes_follow_results():
+    """Sunum notları sabit metin değil: sonuçtaki sınır aşımını, kablo yüklenmesini ve tepe kaymasını söylüyor."""
+    import sys
+
+    import pandas as pd
+
+    sys.path.insert(0, str(Path(APP).parent))
+    import re
+
+    import notlar
+    from microgrid.config import load_config
+
+    plain = lambda notes: " ".join(re.sub("<[^>]+>", "", t) for _, t in notes)
+    cfg = load_config()
+    idx = pd.date_range("2023-06-21 12:00", periods=96, freq="15min", tz="Europe/Istanbul")
+    steps = pd.DataFrame(0.0, index=idx, columns=["pv_kw", "base_load_kw", "ev_kw", "bess_kw", "grid_kw",
+                                                  "min_vm_pu", "max_line_loading_pct", "trafo_loading_pct"])
+    steps["min_vm_pu"], steps["max_line_loading_pct"], steps["trafo_loading_pct"] = 0.99, 50.0, 20.0
+    peak = idx[31]   # 19:45
+    steps.loc[peak, ["grid_kw", "ev_kw", "max_line_loading_pct"]] = [232.0, 210.0, 117.0]
+    k = pd.Series({"arac_sarj_puant_payi": 0.9})
+    text = plain(notlar.power("S2 Kontrolsüz şarj", steps, k, cfg) + notlar.grid(steps, cfg))
+    assert "1 adım aşılıyor" in text and "232 kW" in text and "19:45" in text and "%117" in text
+
+    morning = idx[71]   # 05:45: tepe puant dışında → tepe kayması notu
+    steps.loc[peak, ["grid_kw", "ev_kw"]] = [30.0, 0.0]
+    steps.loc[morning, ["grid_kw", "ev_kw"]] = [180.0, 150.0]
+    text = plain(notlar.power("S5 Optimizasyon (MILP)", steps, pd.Series({"arac_sarj_puant_payi": 0.05}), cfg))
+    assert "tepe kayması" in text and "05:45" in text
