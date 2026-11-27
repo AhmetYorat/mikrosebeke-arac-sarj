@@ -46,7 +46,7 @@ with st.sidebar:
     default = next((i for i, n in enumerate(names) if n.split()[0].lower() == wanted.lower()), names.index("S2 Kontrolsüz şarj"))
     scenario_name = st.selectbox("Senaryo", names, index=default)
     scenario = SCENARIOS[scenario_name]
-    st.caption(scenario.description)
+    st.caption(sema.SENARYO.get(scenario_name.split()[0], {}).get("kisa", scenario.description))
     day = st.radio("Temsili gün", list(TEMSILI_GUNLER), format_func=lambda d: sema.GUN_ADI.get(d, d.capitalize()), horizontal=True,
                    help="Hafta içi ortalama gün; öğlen başlar, ertesi gün öğlen biter.")
 
@@ -72,7 +72,10 @@ steps, station, sessions = result.steps, result.station, result.sessions
 BASELINE = "S2 Kontrolsüz şarj"   # akıllı senaryolar buna göre kıyaslanır
 
 # ---- Başlık ----
-st.html(sema.masthead(scenario_name, scenario.description, day, source != SAHTE))
+code = scenario_name.split()[0]
+st.html(sema.masthead(scenario_name, sema.SENARYO.get(code, {}).get("kisa", scenario.description), day, source != SAHTE))
+with st.expander("📘 Bu senaryo nasıl çalışıyor?", expanded=show_notes):
+    st.html(sema.scenario_explainer(code))
 if source == SAHTE:
     st.warning("Gerçek veri dosyaları bulunamadı; **sahte girdilerle** çalışılıyor. Bu sayılar raporda kullanılmamalı. "
                "Gerçek veri için bir kez: `python -m microgrid.data`", icon="⚠️")
