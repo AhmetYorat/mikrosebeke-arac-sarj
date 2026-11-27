@@ -1,0 +1,10 @@
+# Dashboard teması (YM-4): sunumla aynı renkler. `streamlit run dashboard/app.py` repo kökünden çalıştırılınca okunur.
+[theme]
+base = "light"
+primaryColor = "#E0662F"
+backgroundColor = "#F6F3EC"
+secondaryBackgroundColor = "#ECE6DA"
+textColor = "#1C2A3A"
+
+[client]
+toolbarMode = "minimal"

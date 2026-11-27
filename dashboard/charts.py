@@ -6,14 +6,26 @@ from __future__ import annotations
 
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.io as pio
+
+# Ortak görünüm: sunum ve dashboard aynı dili konuşsun (krem zemin, lacivert yazı, ince ızgara)
+pio.templates["mikro"] = go.layout.Template(layout=dict(
+    font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif", color="#1C2A3A", size=13),
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#FDFCF8",
+    xaxis=dict(gridcolor="#ECE6DA", linecolor="#DCD6C8", zeroline=False),
+    yaxis=dict(gridcolor="#ECE6DA", linecolor="#DCD6C8", zerolinecolor="#C9BFA9"),
+    hoverlabel=dict(bgcolor="#1C2A3A", font_color="#F2EEE4", bordercolor="#1C2A3A"),
+    legend=dict(bgcolor="rgba(0,0,0,0)"),
+))
+pio.templates.default = "plotly_white+mikro"
 
 # Seriler her grafikte aynı renkte olsun (rapor ve sunumda da)
 COLORS = {
-    "pv_kw": "#E0A100",          # güneş
-    "base_load_kw": "#7A8793",   # sabit yük
-    "ev_kw": "#D1495B",          # şarj istasyonu: projenin odağı, en belirgin renk
-    "bess_kw": "#2E86AB",        # batarya
-    "grid_kw": "#2A2A2A",        # şebeke
+    "pv_kw": "#D99A00",          # güneş
+    "base_load_kw": "#8A94A0",   # sabit yük
+    "ev_kw": "#E0662F",          # şarj istasyonu: projenin odağı, en belirgin renk
+    "bess_kw": "#2468C4",        # batarya
+    "grid_kw": "#1C2A3A",        # şebeke
 }
 LABELS = {
     "pv_kw": "PV üretimi",
@@ -25,14 +37,15 @@ LABELS = {
 PUANT = (17, 22)   # EPDK puant dilimi; grafiklerde gölgelenir
 
 
-def _puant_bands(fig: go.Figure, index: pd.DatetimeIndex) -> None:
+def _puant_bands(fig: go.Figure, index: pd.DatetimeIndex, **where) -> None:
     """Puant saatlerini (17-22) gölgeler: tepe yükün pahalı saate denk geldiği görünsün."""
     for day in pd.Series(index.normalize().unique()):
         x0, x1 = day + pd.Timedelta(hours=PUANT[0]), day + pd.Timedelta(hours=PUANT[1])
         if x1 < index[0] or x0 > index[-1]:
             continue
-        fig.add_vrect(x0=max(x0, index[0]), x1=min(x1, index[-1]), fillcolor="#D1495B", opacity=0.07,
-                      line_width=0, annotation_text="puant", annotation_position="top left")
+        fig.add_vrect(x0=max(x0, index[0]), x1=min(x1, index[-1]), fillcolor="#E0662F", opacity=0.08,
+                      line_width=0, **({"annotation_text": "puant", "annotation_position": "top left"} if not where else {}),
+                      **where)
 
 
 def power_flows(steps: pd.DataFrame, cfg: dict) -> go.Figure:
@@ -111,7 +124,7 @@ def grid_quality(steps: pd.DataFrame, cfg: dict) -> go.Figure:
     return fig
 
 
-SCENARIO_COLORS = ["#7A8793", "#D1495B", "#2E86AB", "#3B8C4A", "#E0A100", "#6C4AB6"]
+SCENARIO_COLORS = ["#9AA0A8", "#F47230", "#257DE0", "#00A383", "#6A4CE2", "#C99700"]   # sunumla aynı: S1…S6
 
 
 def scenario_comparison(results: dict, cfg: dict) -> go.Figure:
@@ -157,3 +170,43 @@ def simulink_dynamics(df: pd.DataFrame, band: tuple[float, float]) -> go.Figure:
     fig.update_xaxes(title_text="zaman (s)", row=3, col=1)
     fig.update_layout(height=720, hovermode="x unified", margin=dict(t=40, b=10), legend=dict(orientation="h", y=-0.08))
     return fig
+
+
+def scenario_small_multiples(results: dict, cfg: dict, marker=None) -> go.Figure:
+    """Her senaryo kendi panelinde: şebeke alımı alan grafiği, site sınırı ve tepe noktası. Üst üste binen
+    çizgiler yerine yan yana küçük paneller: hangi senaryonun nerede sınıra dayandığı bir bakışta görünür."""
+    from plotly.subplots import make_subplots
+
+    names = list(results)
+    cols = 3
+    rows = -(-len(names) // cols)
+    fig = make_subplots(rows=rows, cols=cols, shared_xaxes=True, shared_yaxes=True,
+                        horizontal_spacing=0.03, vertical_spacing=0.12, subplot_titles=names)
+    lim = cfg["grid"]["site_import_limit_kw"]
+    for i, name in enumerate(names):
+        s = results[name]
+        r, c = i // cols + 1, i % cols + 1
+        color = SCENARIO_COLORS[i % len(SCENARIO_COLORS)]
+        fig.add_trace(go.Scatter(x=s.index, y=s["grid_kw"], mode="lines", line=dict(color=color, width=2.4),
+                                 fill="tozeroy", fillcolor=_rgba(color, 0.18), name=name, showlegend=False,
+                                 hovertemplate=f"{name.split()[0]} %{{x|%H:%M}}: %{{y:.0f}} kW<extra></extra>"), row=r, col=c)
+        peak_t = s["grid_kw"].idxmax()
+        fig.add_trace(go.Scatter(x=[peak_t], y=[s["grid_kw"].max()], mode="markers+text",
+                                 marker=dict(color=color, size=9, line=dict(color="#FDFCF8", width=2)),
+                                 text=[f"{s['grid_kw'].max():.0f} kW · {peak_t:%H:%M}"], textposition="top center",
+                                 textfont=dict(size=11, color="#1C2A3A"), showlegend=False, hoverinfo="skip"), row=r, col=c)
+        fig.add_hline(y=lim, line_dash="dash", line_color="#C2412D", line_width=1.2, row=r, col=c)
+        if marker is not None:
+            fig.add_vline(x=marker, line_color="#1C2A3A", line_width=1, opacity=0.35, row=r, col=c)
+    _puant_bands(fig, next(iter(results.values())).index, row="all", col="all")
+    fig.update_annotations(font=dict(size=13, color="#1C2A3A"))
+    fig.update_xaxes(tickformat="%H:%M", dtick=6 * 3600 * 1000)
+    fig.update_yaxes(range=[min(-60, min(s["grid_kw"].min() for s in results.values()) - 10),
+                            max(lim, max(s["grid_kw"].max() for s in results.values())) + 45])
+    fig.update_layout(height=250 * rows + 40, margin=dict(t=40, b=10, l=10, r=10))
+    return fig
+
+
+def _rgba(hex_color: str, alpha: float) -> str:
+    h = hex_color.lstrip("#")
+    return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha})"

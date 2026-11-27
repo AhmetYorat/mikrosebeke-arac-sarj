@@ -4,11 +4,13 @@ Senaryo ve temsili gün seçilir, döngü çalışır, sonuçlar sekmelerde gös
 Veri dosyaları yoksa (python -m microgrid.data çalıştırılmadıysa) sahte girdilerle çalışır ve bunu üstte yazar.
 """
 import json
+import time
 
 import pandas as pd
 import streamlit as st
 
 import charts
+import sema
 from microgrid.config import load_config
 from microgrid.grid import PandapowerGrid
 from microgrid.sim.loop import SimResult, time_index
@@ -17,7 +19,8 @@ from microgrid.sim.setup import SAHTE, TEMSILI_GUNLER, load_inputs, with_start
 from microgrid.sim.sonuclar import SHOWN, fmt, kpi_row, kpi_table
 from microgrid.simulink_io import critical_moment, list_outputs, outputs_dir, status_table, summarize
 
-st.set_page_config(page_title="Mikro-Şebeke + EV Şarj İstasyonu", layout="wide")
+st.set_page_config(page_title="Mikro-Şebeke + EV Şarj İstasyonu", page_icon="⚡", layout="wide")
+st.html(sema.CSS)
 base = load_config()
 
 
@@ -32,6 +35,8 @@ def run_cached(cfg_json: str, scenario_name: str, with_grid: bool):
 
 # ---- Kenar çubuğu: senaryo ve parametreler ----
 with st.sidebar:
+    st.markdown("### ⚡ Kontrol paneli")
+    st.caption("Senaryoyu ve günü seçin; şema, kartlar ve grafikler birlikte değişir.")
     st.header("Senaryo")
     names = list(SCENARIOS)
     # ?senaryo=S6 ile doğrudan bir senaryoya açılır (demo bağlantıları için)
@@ -40,7 +45,7 @@ with st.sidebar:
     scenario_name = st.selectbox("Senaryo", names, index=default)
     scenario = SCENARIOS[scenario_name]
     st.caption(scenario.description)
-    day = st.radio("Temsili gün", list(TEMSILI_GUNLER), format_func=str.capitalize, horizontal=True,
+    day = st.radio("Temsili gün", list(TEMSILI_GUNLER), format_func=lambda d: sema.GUN_ADI.get(d, d.capitalize()), horizontal=True,
                    help="Hafta içi ortalama gün; öğlen başlar, ertesi gün öğlen biter.")
 
     st.header("Parametreler")
@@ -62,7 +67,7 @@ steps, station, sessions = result.steps, result.station, result.sessions
 BASELINE = "S2 Kontrolsüz şarj"   # akıllı senaryolar buna göre kıyaslanır
 
 # ---- Başlık ----
-st.title("Mikro-Şebeke + EV Şarj İstasyonu")
+st.html(sema.masthead(scenario_name, scenario.description, day, source != SAHTE))
 if source == SAHTE:
     st.warning("Gerçek veri dosyaları bulunamadı; **sahte girdilerle** çalışılıyor. Bu sayılar raporda kullanılmamalı. "
                "Gerçek veri için bir kez: `python -m microgrid.data`", icon="⚠️")
@@ -73,36 +78,47 @@ if scenario.temporary:
 # ---- KPI kartları: YM-1 (şebeke, maliyet) + YM-2 (kullanıcı memnuniyeti) + V2G; tanımlar sim/sonuclar.py ----
 k = kpi_row(result, cfg)
 ref = kpi_row(run_cached(cfg_json, BASELINE, with_grid)[0], cfg) if scenario_name != BASELINE else None
+n_reached = int(sessions.reached_target.sum()) if len(sessions) else 0
+st.html(sema.kpi_cards(k, ref, len(sessions), n_reached, cfg["grid"]["site_import_limit_kw"]))
+
+# ---- Canlı şema: seçilen saatte güç akışları ve otopark ----
+LABELS_T = [t.strftime("%H:%M") for t in steps.index]
 
 
-def card(col, label, key, fmt, unit="", inverse=True, help=None):
-    """inverse=True: düşmesi iyi olan göstergeler (tepe, maliyet) yeşil görünür."""
-    value = k[key]
-    delta = None
-    if ref is not None and value == value and ref[key] == ref[key] and abs(value - ref[key]) > 1e-9:   # NaN/0 değilse
-        delta = f"{value - ref[key]:+{fmt}} {unit}".strip() + f" ({BASELINE.split()[0]}'ye göre)"
-    tr = lambda t: t.replace(",", ".")   # Türkçe binlik ayırıcı: 3.975 TL
-    col.metric(label, tr(f"{value:{fmt}} {unit}".strip()) if value == value else "—", delta and tr(delta),
-               delta_color="inverse" if inverse else "normal", help=help)
+@st.fragment
+def canli_sema():
+    """Saat kaydırıcısı + oynat: yalnızca bu bölüm yeniden çizilir, sayfanın geri kalanı beklemez."""
+    owner = (scenario_name, day)
+    if st.session_state.get("t_owner") != owner or st.session_state.get("t_lbl") not in LABELS_T:
+        st.session_state["t_lbl"] = steps["grid_kw"].idxmax().strftime("%H:%M")   # açılışta günün tepe anı
+        st.session_state["t_owner"] = owner
+    head, play_col = st.columns([6, 1], vertical_alignment="bottom")
+    with play_col:
+        playing = st.toggle("▶ Oynat", key="play", help="Günü 15 dakikalık adımlarla oynatır.")
+    if playing:
+        i = LABELS_T.index(st.session_state["t_lbl"])
+        st.session_state["t_lbl"] = LABELS_T[(i + 1) % len(LABELS_T)]
+    with head:
+        label = st.select_slider("Saat (öğlenden ertesi öğlene)", LABELS_T, key="t_lbl")
+    t = steps.index[LABELS_T.index(label)]
+    row = steps.loc[t]
+    at_t = station[station["timestamp"] == t] if len(station) else station
+    left, right = st.columns([1.5, 1], gap="medium")
+    with left:
+        st.html('<div class="mk-panel"><h4>Canlı tek hat şeması · ' + label + '</h4>'
+                + sema.single_line(row, cfg, len(at_t)) + "</div>")
+    with right:
+        price = row["price_tl_per_kwh"]
+        band = "puant" if price >= 6 else "gece" if price < 3.5 else "gündüz"
+        st.html('<div class="mk-panel"><h4>Otopark · 10 ünite</h4>' + sema.parking(at_t, sessions, t, cfg)
+                + f'<div class="mk-legend">Tarife: <b>{sema.tr(price, 2)} TL/kWh</b> ({band}) · '
+                  f'Turuncu şarj, mavi V2G, yeşil bağlı ama şarj etmiyor.</div></div>')
+    if playing:
+        time.sleep(0.6)
+        st.rerun(scope="fragment")
 
 
-row1 = st.columns(4)
-card(row1[0], "Şebeke tepe alımı", "tepe_alim_kw", ".0f", "kW", help=f"Saat: {k['tepe_alim_saati']}")
-card(row1[1], "Puant tepe alımı (17–22)", "puant_tepe_alim_kw", ".0f", "kW")
-card(row1[2], "Günlük maliyet", "maliyet_tl", ",.0f", "TL")
-card(row1[3], "Araç şarjının puanttaki payı", "arac_sarj_puant_payi", ".0%")
-row2 = st.columns(4)
-card(row2[0], "Araç şarjı", "arac_sarj_kwh", ".0f", "kWh", inverse=False)
-card(row2[1], "PV öz tüketim oranı", "oz_tuketim_orani", ".0%", inverse=False)
-card(row2[2], "Site sınırı aşımı", "site_siniri_asim_adim", ".0f", "adım")
-card(row2[3], "En düşük gerilim", "min_gerilim_pu", ".3f", "p.u.", inverse=False)
-if len(sessions):   # istasyon ve kullanıcı (YM-2)
-    row3 = st.columns(4)
-    card(row3[0], "Hedef SOC'ye ulaşan araç", "hedefe_ulasma_orani", ".0%", inverse=False,
-         help=f"{int(sessions.reached_target.sum())}/{len(sessions)} araç")
-    card(row3[1], "Hiç bağlanamayan araç", "hizmet_alamayan", ".0f")
-    card(row3[2], "Ortalama ünite beklemesi", "ortalama_bekleme_saat", ".1f", "sa")
-    card(row3[3], "V2G ile şebekeye verilen", "v2g_veris_kwh", ".0f", "kWh", inverse=False)
+canli_sema()
 
 # ---- Sekmeler ----
 tab_flow, tab_station, tab_grid, tab_cmp, tab_dyn, tab_data = st.tabs(
@@ -152,11 +168,17 @@ with tab_cmp:
         st.session_state[key] = True
     if key in st.session_state:
         results = {name: run_cached(cfg_json, name, with_grid)[0] for name in SCENARIOS}
-        st.plotly_chart(charts.scenario_comparison({n: r.steps for n, r in results.items()}, cfg), width="stretch")
+        st.markdown("##### Her senaryo kendi panelinde: şebekeden alım")
+        st.caption("Kırmızı kesikli çizgi 180 kW site sınırı, turuncu bant puant (17–22), nokta günün tepesi.")
+        st.plotly_chart(charts.scenario_small_multiples({n: r.steps for n, r in results.items()}, cfg), width="stretch")
         table = kpi_table(results, cfg)
-        view = pd.DataFrame({title: [fmt(k_, table.at[k_, c]) for c in table.columns]
-                             for k_, title, _ in SHOWN if k_ in table.index}, index=table.columns).T
-        st.dataframe(view, width="stretch", height=36 * (len(view) + 1) + 4)   # bütün satırlar kaydırmadan görünsün
+        st.markdown("##### Puan kartı")
+        st.caption("Çubuk boyu değerle orantılı; yeşil yazı o göstergede en iyi senaryo.")
+        st.html(sema.scorecard(table))
+        with st.expander("Bütün göstergeler (tablo)"):
+            view = pd.DataFrame({title: [fmt(k_, table.at[k_, c]) for c in table.columns]
+                                 for k_, title, _ in SHOWN if k_ in table.index}, index=table.columns).T
+            st.dataframe(view, width="stretch", height=36 * (len(view) + 1) + 4)
         st.download_button("KPI tablosunu indir (CSV)", table.to_csv().encode("utf-8"), file_name=f"kpi_{day}.csv")
 
 with tab_dyn:

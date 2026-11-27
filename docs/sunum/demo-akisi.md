@@ -24,6 +24,7 @@ Hazır sekmeler (`streamlit run dashboard/app.py` sonrası):
 
 | # | Süre | Ekranda | Söylenecek |
 | --- | --- | --- | --- |
+| 0 | 0:45 | S2, üstteki **canlı tek hat şeması** | "Sayfa günün tepe anında (19:45) açılıyor. Şemada güç şebekeden trafoya, oradan iki kabloya akıyor; çizgi kalınlığı güç. Kırmızı: site sınırı ve otopark kablosu (%117) aşılmış. Sağda otopark: 10 ünitenin hepsi dolu." **▶ Oynat**a basıp günü akıt; akşam kırmızıya dönüşü göster, sonra durdur. |
 | 1 | 0:30 | S2, **Güç akışları** | "Site otoparkı: 20 araç, 10 ünite. Akşam eve dönen herkes aynı anda takıyor. Kırmızı çizgi istasyon; puant saatinde (gölgeli) şebeke alımı site sınırını (kesikli çizgi) aşıyor." |
 | 2 | 1:00 | S2, **Şarj istasyonu** | "Her satır bir ünite. 18:00'den sonra hepsi dolu, tam güçte. Alttaki tablo araç başına: geliş, bekleme, SOC, hedefe ulaştı mı (YM-2'nin istasyon modeli: CC-CV, sıra, nöbetleşe şarj)." |
 | 3 | 0:45 | S2, **Şebeke** | "Yük akışı (pandapower): en düşük gerilim ve trafo yüklenmesi. Kontrolsüz şarj gerilimi de düşürüyor." (EM-2 bir cümle) |

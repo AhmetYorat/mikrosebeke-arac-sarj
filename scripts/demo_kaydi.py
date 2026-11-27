@@ -105,7 +105,7 @@ def record(base: str, out_dir: Path, allow_mock: bool) -> Path:
         if page.get_by_text(SAHTE_UYARI).count() and not allow_mock:
             browser.close()
             sys.exit("Dashboard sahte girdiyle çalışıyor. Önce `python -m microgrid.data` çalıştırın.")
-        for day in (None, "Aralik"):
+        for day in (None, "Aralık"):
             if day:
                 page.get_by_text(day, exact=True).click(); wait_settled(page)
             tab(page, "Senaryo karşılaştırması")
@@ -146,7 +146,7 @@ def record(base: str, out_dir: Path, allow_mock: bool) -> Path:
         scroll_main(page, 700, 14)
         caption(page, "KPI tablosu: tepe, maliyet, verilen enerji, hedefe ulaşan araç, bekleme.", 7)
 
-        open_scenario(page, base, "S6", day="Aralik")
+        open_scenario(page, base, "S6", day="Aralık")
         tab(page, "Şarj istasyonu")
         scroll_main(page, 520)
         caption(page, "S6 V2G, Aralık: mavi hücreler araçtan şebekeye. Araç %30'un altına inmiyor, ayrılışta hedef garanti.", 7)
