@@ -10,22 +10,23 @@ import plotly.io as pio
 
 # Ortak görünüm: sunum ve dashboard aynı dili konuşsun (krem zemin, lacivert yazı, ince ızgara)
 pio.templates["mikro"] = go.layout.Template(layout=dict(
-    font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif", color="#1C2A3A", size=13),
-    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#FDFCF8",
-    xaxis=dict(gridcolor="#ECE6DA", linecolor="#DCD6C8", zeroline=False),
-    yaxis=dict(gridcolor="#ECE6DA", linecolor="#DCD6C8", zerolinecolor="#C9BFA9"),
-    hoverlabel=dict(bgcolor="#1C2A3A", font_color="#F2EEE4", bordercolor="#1C2A3A"),
+    font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif", color="#C7D4EA", size=13),
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(11,18,32,0.85)",
+    xaxis=dict(gridcolor="#16233A", linecolor="#1E2D47", zeroline=False),
+    yaxis=dict(gridcolor="#16233A", linecolor="#1E2D47", zerolinecolor="#2A3E63"),
+    hoverlabel=dict(bgcolor="#0E1626", font_color="#F1F6FF", bordercolor="#22D3EE",
+                    font_family="ui-monospace, SF Mono, Menlo, Consolas, monospace"),
     legend=dict(bgcolor="rgba(0,0,0,0)"),
 ))
-pio.templates.default = "plotly_white+mikro"
+pio.templates.default = "plotly_dark+mikro"
 
 # Seriler her grafikte aynı renkte olsun (rapor ve sunumda da)
 COLORS = {
-    "pv_kw": "#D99A00",          # güneş
-    "base_load_kw": "#8A94A0",   # sabit yük
-    "ev_kw": "#E0662F",          # şarj istasyonu: projenin odağı, en belirgin renk
-    "bess_kw": "#2468C4",        # batarya
-    "grid_kw": "#1C2A3A",        # şebeke
+    "pv_kw": "#FBBF24",          # güneş
+    "base_load_kw": "#8FA6C8",   # sabit yük
+    "ev_kw": "#FB923C",          # şarj istasyonu: projenin odağı, en belirgin renk
+    "bess_kw": "#60A5FA",        # batarya
+    "grid_kw": "#22D3EE",        # şebeke
 }
 LABELS = {
     "pv_kw": "PV üretimi",
@@ -43,7 +44,7 @@ def _puant_bands(fig: go.Figure, index: pd.DatetimeIndex, **where) -> None:
         x0, x1 = day + pd.Timedelta(hours=PUANT[0]), day + pd.Timedelta(hours=PUANT[1])
         if x1 < index[0] or x0 > index[-1]:
             continue
-        fig.add_vrect(x0=max(x0, index[0]), x1=min(x1, index[-1]), fillcolor="#E0662F", opacity=0.08,
+        fig.add_vrect(x0=max(x0, index[0]), x1=min(x1, index[-1]), fillcolor="#FBBF24", opacity=0.07,
                       line_width=0, **({"annotation_text": "puant", "annotation_position": "top left"} if not where else {}),
                       **where)
 
@@ -57,7 +58,7 @@ def power_flows(steps: pd.DataFrame, cfg: dict) -> go.Figure:
                       dash="dot" if col == "bess_kw" else None),
             hovertemplate="%{y:.1f} kW",
         ))
-    fig.add_hline(y=cfg["grid"]["site_import_limit_kw"], line_dash="dash", line_color="#2A2A2A",
+    fig.add_hline(y=cfg["grid"]["site_import_limit_kw"], line_dash="dash", line_color="#F87171",
                   annotation_text=f"site sınırı {cfg['grid']['site_import_limit_kw']} kW", annotation_position="top right")
     fig.add_hline(y=cfg["station"]["power_limit_kw"], line_dash="dot", line_color=COLORS["ev_kw"],
                   annotation_text=f"istasyon sınırı {cfg['station']['power_limit_kw']} kW",
@@ -80,9 +81,9 @@ def charger_heatmap(station: pd.DataFrame, cfg: dict) -> go.Figure:
     v2g = bool((pivot.fillna(0) < -1e-9).to_numpy().any())
     if v2g:   # V2G: deşarj (−) mavi, şarj (+) kırmızı, 0 beyaz
         lim = float(abs(pivot).max().max())
-        scale = dict(colorscale="RdBu_r", zmin=-lim, zmax=lim, zmid=0)
+        scale = dict(colorscale=[[0, "#93C5FD"], [0.25, "#2563EB"], [0.5, "#13203A"], [0.75, "#C2410C"], [1, "#FDBA74"]], zmin=-lim, zmax=lim, zmid=0)
     else:
-        scale = dict(colorscale="Reds", zmin=0)
+        scale = dict(colorscale=[[0, "#13203A"], [0.5, "#C2410C"], [1, "#FDBA74"]], zmin=0)
     fig = go.Figure(go.Heatmap(
         z=z, x=pivot.columns, y=pivot.index, **scale,
         colorbar=dict(title="kW (− V2G)" if v2g else "kW"), hovertemplate="%{y} %{x|%H:%M}: %{z:.1f} kW<extra></extra>",
@@ -108,13 +109,13 @@ def grid_quality(steps: pd.DataFrame, cfg: dict) -> go.Figure:
     """Yük akışı sonuçları: en düşük gerilim ve kablo/trafo yüklenmesi (iki eksen)."""
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=steps.index, y=steps["min_vm_pu"], name="En düşük gerilim (p.u.)",
-                             line=dict(color="#2E86AB", width=2.4)))
-    fig.add_hline(y=cfg["grid"]["voltage_min_pu"], line_dash="dash", line_color="#2E86AB",
+                             line=dict(color="#60A5FA", width=2.4)))
+    fig.add_hline(y=cfg["grid"]["voltage_min_pu"], line_dash="dash", line_color="#60A5FA",
                   annotation_text=f"alt sınır {cfg['grid']['voltage_min_pu']} p.u.")
     fig.add_trace(go.Scatter(x=steps.index, y=steps["max_line_loading_pct"], name="En yüklü kablo (%)",
-                             yaxis="y2", line=dict(color="#D1495B")))
+                             yaxis="y2", line=dict(color="#F87171")))
     fig.add_trace(go.Scatter(x=steps.index, y=steps["trafo_loading_pct"], name="Trafo (%)",
-                             yaxis="y2", line=dict(color="#7A8793", dash="dot")))
+                             yaxis="y2", line=dict(color="#8FA6C8", dash="dot")))
     _puant_bands(fig, steps.index)
     fig.update_layout(
         yaxis=dict(title="gerilim (p.u.)"),
@@ -124,7 +125,7 @@ def grid_quality(steps: pd.DataFrame, cfg: dict) -> go.Figure:
     return fig
 
 
-SCENARIO_COLORS = ["#9AA0A8", "#F47230", "#257DE0", "#00A383", "#6A4CE2", "#C99700"]   # sunumla aynı: S1…S6
+SCENARIO_COLORS = ["#7D8FB3", "#EA6A12", "#3B82F6", "#10B981", "#8B5CF6", "#B88A00"]   # koyu zeminde doğrulandı; S1 nötr taban
 
 
 def scenario_comparison(results: dict, cfg: dict) -> go.Figure:
@@ -152,16 +153,16 @@ def simulink_dynamics(df: pd.DataFrame, band: tuple[float, float]) -> go.Figure:
     from plotly.subplots import make_subplots
 
     power_cols = {"p_grid_kw": ("Şebeke", COLORS["grid_kw"]), "p_ev_ac_kw": ("İstasyon AC", COLORS["ev_kw"]),
-                  "p_ev_dc_kw": ("İstasyon DC", "#8E2C3A"), "p_bess_kw": ("Batarya", COLORS["bess_kw"]),
+                  "p_ev_dc_kw": ("İstasyon DC", "#F97316"), "p_bess_kw": ("Batarya", COLORS["bess_kw"]),
                   "p_pv_kw": ("PV", COLORS["pv_kw"]), "p_load_kw": ("Sabit yük", COLORS["base_load_kw"])}
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
                         subplot_titles=("Frekans (Hz)", "PCC gerilimi (p.u.)", "Güçler (kW)"))
     t = df.index
-    fig.add_trace(go.Scatter(x=t, y=df["freq_pu"] * 50, name="Frekans", line=dict(color="#2A2A2A", width=2),
+    fig.add_trace(go.Scatter(x=t, y=df["freq_pu"] * 50, name="Frekans", line=dict(color="#22D3EE", width=2),
                              hovertemplate="%{y:.3f} Hz"), row=1, col=1)
-    fig.add_hrect(y0=band[0] * 50, y1=band[1] * 50, fillcolor="#3B8C4A", opacity=0.12, line_width=0, row=1, col=1,
+    fig.add_hrect(y0=band[0] * 50, y1=band[1] * 50, fillcolor="#34D399", opacity=0.12, line_width=0, row=1, col=1,
                   annotation_text=f"bant {band[0] * 50:.2f}–{band[1] * 50:.2f} Hz", annotation_position="top left")
-    fig.add_trace(go.Scatter(x=t, y=df["v_pcc_pu"], name="PCC gerilimi", line=dict(color="#2E86AB", width=2),
+    fig.add_trace(go.Scatter(x=t, y=df["v_pcc_pu"], name="PCC gerilimi", line=dict(color="#60A5FA", width=2),
                              hovertemplate="%{y:.3f} p.u."), row=2, col=1)
     for col, (label, color) in power_cols.items():
         if col in df.columns:
@@ -192,14 +193,14 @@ def scenario_small_multiples(results: dict, cfg: dict, marker=None) -> go.Figure
                                  hovertemplate=f"{name.split()[0]} %{{x|%H:%M}}: %{{y:.0f}} kW<extra></extra>"), row=r, col=c)
         peak_t = s["grid_kw"].idxmax()
         fig.add_trace(go.Scatter(x=[peak_t], y=[s["grid_kw"].max()], mode="markers+text",
-                                 marker=dict(color=color, size=9, line=dict(color="#FDFCF8", width=2)),
+                                 marker=dict(color=color, size=9, line=dict(color="#070B14", width=2)),
                                  text=[f"{s['grid_kw'].max():.0f} kW · {peak_t:%H:%M}"], textposition="top center",
-                                 textfont=dict(size=11, color="#1C2A3A"), showlegend=False, hoverinfo="skip"), row=r, col=c)
-        fig.add_hline(y=lim, line_dash="dash", line_color="#C2412D", line_width=1.2, row=r, col=c)
+                                 textfont=dict(size=11, color="#F1F6FF", family="ui-monospace, Menlo, monospace"), showlegend=False, hoverinfo="skip"), row=r, col=c)
+        fig.add_hline(y=lim, line_dash="dash", line_color="#F87171", line_width=1.2, row=r, col=c)
         if marker is not None:
-            fig.add_vline(x=marker, line_color="#1C2A3A", line_width=1, opacity=0.35, row=r, col=c)
+            fig.add_vline(x=marker, line_color="#C7D4EA", line_width=1, opacity=0.35, row=r, col=c)
     _puant_bands(fig, next(iter(results.values())).index, row="all", col="all")
-    fig.update_annotations(font=dict(size=13, color="#1C2A3A"))
+    fig.update_annotations(font=dict(size=13, color="#C7D4EA"))
     fig.update_xaxes(tickformat="%H:%M", dtick=6 * 3600 * 1000)
     fig.update_yaxes(range=[min(-60, min(s["grid_kw"].min() for s in results.values()) - 10),
                             max(lim, max(s["grid_kw"].max() for s in results.values())) + 45])
