@@ -180,7 +180,7 @@ def kpi_cards(k: pd.Series, ref: pd.Series | None, n_sessions: int, n_reached: i
         ("Araçlara verilen", f"{tr(g('arac_sarj_kwh'))} kWh"),
         ("Şarjın puant payı", "—" if nan(g("arac_sarj_puant_payi")) else f"%{g('arac_sarj_puant_payi') * 100:.0f}"),
         ("Ortalama ünite beklemesi", "—" if nan(g("ortalama_bekleme_saat")) else f"{tr(g('ortalama_bekleme_saat'), 1)} sa"),
-        ("Site sınırı aşımı", f"{g('site_siniri_asim_adim'):.0f} adım"),
+        ("Site sınırı aşımı", f"{g('site_siniri_asim_adim') * 15:.0f} dakika"),
         ("En düşük gerilim", "—" if nan(g("min_gerilim_pu")) else f"{tr(g('min_gerilim_pu'), 3)} p.u."),
         ("V2G ile şebekeye", "—" if nan(g("v2g_veris_kwh")) else f"{tr(g('v2g_veris_kwh'))} kWh"),
     ]
@@ -323,7 +323,7 @@ SCORE_COLS = [  # (anahtar, başlık, biçim, düşük mü iyi)
     ("arac_sarj_kwh", "Araçlara verilen", "{:.0f} kWh", False),
     ("hedefe_ulasma_orani", "Hedefe ulaşan", "{:.0%}", False),
     ("ortalama_bekleme_saat", "Bekleme", "{:.1f} sa", True),
-    ("site_siniri_asim_adim", "Sınır aşımı", "{:.0f} adım", True),
+    ("site_siniri_asim_adim", "Sınır aşımı", "{:.0f} dk", True),
 ]
 
 
@@ -337,6 +337,8 @@ def scorecard(table: pd.DataFrame) -> str:
             if key not in table.index:
                 out += "<td>—</td>"; continue
             row = pd.to_numeric(table.loc[key], errors="coerce")
+            if key.endswith("_asim_adim"):
+                row = row * 15          # 15 dakikalık adım sayısı → dakika
             v = row[name]
             if v != v:
                 out += "<td>—</td>"; continue
@@ -399,8 +401,8 @@ SENARYO = {
     "S5": dict(
         kisa="Optimizasyon: kurallar yerine her 15 dakikada en ucuz şarj planını matematikle hesaplar.",
         ekler="+ Optimizasyon",
-        nasil=["Her adımda o an bağlı araçlar, batarya ve tarifeyle gün sonuna kadar en ucuz plan çözülüyor (MILP).",
-               "Planın yalnızca ilk adımı uygulanıyor; sonra yeni bilgiyle tekrar çözülüyor.",
+        nasil=["Her 15 dakikada o an bağlı araçlar, batarya ve tarifeyle gün sonuna kadar en ucuz plan çözülüyor (MILP).",
+               "Planın yalnızca ilk 15 dakikası uygulanıyor; sonra yeni bilgiyle tekrar çözülüyor.",
                "Sonradan gelecek araçlar bilinmiyor: gerçek hayattaki gibi."],
         bak=["Günün en düşük maliyeti.",
              "Tepe kayması: şarj gece tarifesinin bitişinden hemen önceye yığılıyor, site sınırına dayanıyor.",

@@ -100,7 +100,7 @@ def canli_sema():
         st.session_state["t_owner"] = owner
     head, play_col = st.columns([5, 1.2], vertical_alignment="bottom")
     with play_col:
-        playing = st.toggle("▶ Oynat", key="play", help="Günü 15 dakikalık adımlarla oynatır.")
+        playing = st.toggle("▶ Oynat", key="play", help="Günü 15’er dakika ilerleterek oynatır.")
     if playing:
         i = LABELS_T.index(st.session_state["t_lbl"])
         st.session_state["t_lbl"] = LABELS_T[(i + 1) % len(LABELS_T)]
@@ -147,7 +147,7 @@ with tab_station:
         st.write("Bu senaryoda istasyona araç bağlanmıyor.")
     else:
         st.subheader("Ünite doluluğu")
-        st.caption("Her satır bir şarj ünitesi; renk o adımda çekilen güç (V2G senaryosunda mavi: araçtan şebekeye). "
+        st.caption("Her satır bir şarj ünitesi; renk o 15 dakikada çekilen güç (V2G senaryosunda mavi: araçtan şebekeye). "
                    "Boş hücre: ünite boş ya da araç dolmuş.")
         st.plotly_chart(charts.charger_heatmap(station, cfg), width="stretch")
         st.subheader("Araçların doluluk oranı (SOC)")
@@ -197,7 +197,12 @@ with tab_cmp:
         if show_notes:
             st.html(notlar.box(notlar.comparison(table, {n: r.steps for n, r in results.items()})))
         with st.expander("Bütün göstergeler (tablo)"):
-            view = pd.DataFrame({title: [fmt(k_, table.at[k_, c]) for c in table.columns]
+            dk = cfg["simulation"]["step_minutes"]
+
+            def cell(k_, v):   # sınır aşımları adım sayısı olarak saklanıyor; ekranda dakika
+                return f"{float(v) * dk:.0f}" if k_.endswith("_asim_adim") and pd.notna(v) else fmt(k_, v)
+
+            view = pd.DataFrame({title.replace("(adım)", "(dakika)"): [cell(k_, table.at[k_, c]) for c in table.columns]
                                  for k_, title, _ in SHOWN if k_ in table.index}, index=table.columns).T
             st.dataframe(view, width="stretch", height=36 * (len(view) + 1) + 4)
         st.download_button("KPI tablosunu indir (CSV)", table.to_csv().encode("utf-8"), file_name=f"kpi_{day}.csv")
@@ -207,7 +212,7 @@ with tab_dyn:
     runs = list_outputs(outputs_dir(cfg))
 
     st.subheader("Simülasyon → Simulink: günün kritik anı")
-    st.caption("Seçili senaryoda şebekeyi en çok zorlayan adım. EM ekibi D2 (toplu araç bağlanması) gibi "
+    st.caption("Seçili senaryoda şebekeyi en çok zorlayan an. EM ekibi D2 (toplu araç bağlanması) gibi "
                "dinamik senaryoları bu değerlerle başlatır; böylece iki katman aynı anı anlatır.")
     cm = critical_moment(steps, cfg)
     st.dataframe(pd.DataFrame([cm]).round(3), hide_index=True, width="stretch")

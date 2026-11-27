@@ -92,18 +92,19 @@ def power(scenario_name: str, steps: pd.DataFrame, k: pd.Series, cfg: dict) -> l
     peak_t = steps["grid_kw"].idxmax()
     peak = steps["grid_kw"].max()
     over = steps["grid_kw"] > lim + 1e-6
+    dk = cfg["simulation"]["step_minutes"]
     notes = []
     if code == "S1":
         notes.append(("bilgi", f"Araçsız gün: karşılaştırma tabanı. Sitenin kendi tepesi <b>{tr(peak)} kW</b> ({_hhmm(peak_t)}); "
                                "diğer senaryolardaki fark tamamen araçlardan geliyor."))
     if over.any():
-        notes.append(("dikkat", f"Site sınırı {lim:.0f} kW <b>{int(over.sum())} adım</b> aşılıyor ({_ranges(over)}); "
+        notes.append(("dikkat", f"Site sınırı {lim:.0f} kW toplam <b>{int(over.sum()) * dk} dakika</b> aşılıyor ({_ranges(over)}); "
                                 f"en kötüsü <b>{tr(peak)} kW</b> (saat {_hhmm(peak_t)})."))
     elif steps["ev_kw"].abs().sum() > 0:
-        notes.append(("iyi", f"Site sınırı ({lim:.0f} kW) hiçbir adımda aşılmıyor; günün tepesi {tr(peak)} kW ({_hhmm(peak_t)})."))
+        notes.append(("iyi", f"Site sınırı ({lim:.0f} kW) gün boyunca hiç aşılmıyor; günün tepesi {tr(peak)} kW ({_hhmm(peak_t)})."))
     st_over = steps["ev_kw"] > st_lim + 1e-6
     if st_over.any():
-        notes.append(("dikkat", f"İstasyon kendi {st_lim:.0f} kW sınırını <b>{int(st_over.sum())} adım</b> geçiyor "
+        notes.append(("dikkat", f"İstasyon kendi {st_lim:.0f} kW sınırını toplam <b>{int(st_over.sum()) * dk} dakika</b> geçiyor "
                                 f"(en fazla {tr(steps['ev_kw'].max())} kW): kontrolsüz şarjda sınırı uygulayan yok."))
     share = k.get("arac_sarj_puant_payi", float("nan"))
     if share == share and steps["ev_kw"].clip(lower=0).sum() > 0:
@@ -172,8 +173,8 @@ def grid(steps: pd.DataFrame, cfg: dict) -> list[tuple[str, str]]:
     ll = steps["max_line_loading_pct"]
     over = ll > cfg["grid"]["max_loading_percent"]
     if over.any():
-        notes.append(("dikkat", f"En yüklü kablonun yüklenmesi <b>%{ll.max():.0f}</b>; <b>{int(over.sum())} adım</b> "
-                                f"({int(over.sum()) * cfg['simulation']['step_minutes']} dakika) taşıyabileceğinden fazla akım geçiyor "
+        notes.append(("dikkat", f"En yüklü kablonun yüklenmesi <b>%{ll.max():.0f}</b>; toplam <b>{int(over.sum()) * cfg['simulation']['step_minutes']} dakika</b> "
+                                f"taşıyabileceğinden fazla akım geçiyor "
                                 f"({_ranges(over)}). Bu sitede asıl sınırlayıcı gerilim değil, otopark kablosu."))
     else:
         notes.append(("iyi", f"Kablolar en fazla %{ll.max():.0f} yüklü; aşırı yük yok."))

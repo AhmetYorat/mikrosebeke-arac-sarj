@@ -85,7 +85,7 @@ def test_presentation_notes_follow_results():
     steps.loc[peak, ["grid_kw", "ev_kw", "max_line_loading_pct"]] = [232.0, 210.0, 117.0]
     k = pd.Series({"arac_sarj_puant_payi": 0.9})
     text = plain(notlar.power("S2 Kontrolsüz şarj", steps, k, cfg) + notlar.grid(steps, cfg))
-    assert "1 adım aşılıyor" in text and "232 kW" in text and "19:45" in text and "%117" in text
+    assert "15 dakika aşılıyor" in text and "adım" not in text and "232 kW" in text and "19:45" in text and "%117" in text
 
     morning = idx[71]   # 05:45: tepe puant dışında → tepe kayması notu
     steps.loc[peak, ["grid_kw", "ev_kw"]] = [30.0, 0.0]
