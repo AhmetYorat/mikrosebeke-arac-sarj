@@ -43,7 +43,7 @@ with st.sidebar:
     # ?senaryo=S6 ile doğrudan bir senaryoya açılır (demo bağlantıları için)
     wanted = st.query_params.get("senaryo", "S2")
     default = next((i for i, n in enumerate(names) if n.split()[0].lower() == wanted.lower()), names.index("S2 Kontrolsüz şarj"))
-    scenario_name = st.selectbox("Senaryo", names, index=default)
+    scenario_name = st.selectbox("Senaryo", names, index=default, label_visibility="collapsed")
     scenario = SCENARIOS[scenario_name]
     day = st.radio("Temsili gün", list(TEMSILI_GUNLER), format_func=lambda d: sema.GUN_ADI.get(d, d.capitalize()), horizontal=True,
                    help="Hafta içi ortalama gün; öğlen başlar, ertesi gün öğlen biter.")

@@ -42,6 +42,10 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 h1, h2, h3, h4, h5 {{ font-family: system-ui, -apple-system, 'Segoe UI', sans-serif !important; color: var(--ink);
   letter-spacing: .02em; }}
 section[data-testid="stSidebar"] {{ background: #0A1220; border-right: 1px solid var(--line); }}
+[data-testid="stSidebarHeader"] {{ height: 2.25rem; min-height: 0; padding-top: .5rem; padding-bottom: 0; }}
+[data-testid="stSidebarUserContent"] {{ padding-top: 0 !important; padding-bottom: 1rem; }}
+section[data-testid="stSidebar"] h2 {{ font-size: 1.15rem; padding: .6rem 0 .3rem; }}
+section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{ gap: .55rem; }}
 section[data-testid="stSidebar"] h3 {{ text-transform: uppercase; font-size: 15px; letter-spacing: .16em; color: var(--cyan); }}
 .stTabs [data-baseweb="tab-list"] {{ gap: 2px; border-bottom: 1px solid var(--line); }}
 .stTabs [data-baseweb="tab"] {{ padding: 10px 16px; font-weight: 600; color: var(--soft); text-transform: uppercase;
