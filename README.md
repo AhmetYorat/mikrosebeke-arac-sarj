@@ -16,9 +16,27 @@ Kapsam kararı: [docs/kapsam.md](docs/kapsam.md) · Arayüz sözleşmesi: [docs/
 
 Python 3.10 veya üstü gerekir (3.12 ile denendi).
 
-**macOS'ta tek tıkla:** `kurulum.command` dosyasına çift tıklayın. Python 3.10+ bulur (yoksa Homebrew ile kurar), `.venv`'i oluşturur, paketleri kurar, PVGIS verisini bir kez indirir ve dashboard'u açar (http://localhost:8501). İlk açılışta macOS izin isterse: sağ tık → Aç.
+### macOS'ta tek tıkla (önerilen)
 
-Elle kurulum:
+1. Repoyu indirin: `git clone https://github.com/AhmetYorat/mikrosebeke-arac-sarj.git`
+   (ya da GitHub'da **Code → Download ZIP**, sonra ZIP'i açın).
+2. Klasördeki **`kurulum.command`** dosyasına çift tıklayın. Terminal açılır ve sırayla:
+   - Python 3.10+ bulur; yoksa Homebrew ile Python 3.12 kurar,
+   - `.venv` sanal ortamını oluşturur ve paketleri kurar,
+   - veri yoksa PVGIS güneş verisini bir kez indirir ve yük profillerini üretir (`python -m microgrid.data`),
+   - dashboard'u açar: http://localhost:8501
+3. Kapatmak için Terminal'de **Ctrl + C**. Sonraki açılışlarda da aynı dosyaya çift tıklamanız yeterli.
+
+Sık karşılaşılanlar:
+
+| Sorun | Çözüm |
+| --- | --- |
+| "Geliştiricisi doğrulanamadığı için açılamıyor" | Dosyaya **sağ tık → Aç → Aç**. Bir kez yapmak yeterli. |
+| "İzniniz yok" / dosya açılmıyor (çoğunlukla ZIP ile indirince) | Terminal'de klasöre girip `chmod +x kurulum.command` |
+| Streamlit e-posta soruyor | Betik bunu kendisi atlar; elle kurulumda Enter'a basmanız yeterli. |
+| `pip` "editable install" hatası | Python 3.9 veya eski pip kullanılıyor; `kurulum.command` doğru Python'u kendisi bulur. |
+
+### Elle kurulum (Windows, Linux)
 
 ```bash
 git clone https://github.com/AhmetYorat/mikrosebeke-arac-sarj.git
