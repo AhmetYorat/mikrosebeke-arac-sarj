@@ -31,7 +31,6 @@ CSS = f"""
 :root {{ --ink:{INK}; --paper:{PAPER}; --sand:{SAND}; --line:{LINE}; --soft:{SOFT}; --accent:{ACCENT}; }}
 .stApp {{ background: var(--sand); }}
 header[data-testid="stHeader"] {{ background: transparent; }}
-[data-testid="stToolbar"] {{ display: none; }}
 .block-container {{ padding-top: 1.2rem; max-width: 1500px; }}
 h1, h2, h3 {{ font-family: Georgia, 'Times New Roman', serif !important; color: var(--ink); letter-spacing: -0.01em; }}
 section[data-testid="stSidebar"] {{ background: var(--paper); border-right: 1px solid var(--line); }}

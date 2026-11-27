@@ -19,7 +19,8 @@ from microgrid.sim.setup import SAHTE, TEMSILI_GUNLER, load_inputs, with_start
 from microgrid.sim.sonuclar import SHOWN, fmt, kpi_row, kpi_table
 from microgrid.simulink_io import critical_moment, list_outputs, outputs_dir, status_table, summarize
 
-st.set_page_config(page_title="Mikro-Şebeke + EV Şarj İstasyonu", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Mikro-Şebeke + EV Şarj İstasyonu", page_icon="⚡", layout="wide",
+                   initial_sidebar_state="expanded")
 st.html(sema.CSS)
 base = load_config()
 
